@@ -1,44 +1,49 @@
 import html
 
-
-from telegram import ParseMode, Update, message, parsemode
+from telegram import ParseMode, Update
 from telegram.error import BadRequest
 from telegram.ext import CallbackContext
 
 from telegram.utils.helpers import escape_markdown, mention_html
 from telethon import events
 from telethon.tl.types import ChannelParticipantsAdmins
+from telethon.tl.types import ChannelParticipantCreator
 from tg_bot import telethn
 
-from tg_bot import SUDO_USERS, spamcheck
-from tg_bot.modules.helper_funcs.chat_status import (
-    bot_admin,
-    can_promote,
-    connection_status,
-)
+from tg_bot import spamcheck
+from tg_bot.modules.helper_funcs.chat_status import connection_status
 
 from tg_bot.modules.helper_funcs.extraction import extract_user, extract_user_and_text
 from tg_bot.modules.log_channel import loggable
 from tg_bot.modules.language import gs
 from tg_bot.modules.helper_funcs.decorators import kigcmd, register
 
-from ..modules.helper_funcs.anonymous import user_admin as u_admin, AdminPerms, resolve_user as res_user, UserClass
+from .helper_funcs.admin_status import (
+    user_is_admin as admin,
+    user_admin_check,
+    bot_admin_check,
+    bot_is_admin as b_admin,
+    AdminPerms,
+    UserClass,
+    get_bot_member,
+)
+
+from typing import Optional
+
 
 @kigcmd(command="fullpromote", can_disable=False)
 @spamcheck
 @connection_status
-@bot_admin
-@can_promote
-@u_admin(UserClass.ADMIN, AdminPerms.CAN_PROMOTE_MEMBERS)
+@bot_admin_check(AdminPerms.CAN_PROMOTE_MEMBERS)
+@user_admin_check(AdminPerms.CAN_PROMOTE_MEMBERS, UserClass.MOD)
 @loggable
-def fullpromote(update: Update, context: CallbackContext) -> str:
+def fullpromote(update: Update, context: CallbackContext) -> Optional[str]:
     bot = context.bot
     args = context.args
 
     message = update.effective_message
     chat = update.effective_chat
-    u = update.effective_user
-    user = res_user(u, message.message_id, chat)
+    user = update.effective_user
 
     user_id, title = extract_user_and_text(message, args)
 
@@ -50,7 +55,8 @@ def fullpromote(update: Update, context: CallbackContext) -> str:
 
     try:
         user_member = chat.get_member(user_id)
-    except:
+    except Exception as e:
+        message.reply_text(f"Error: {e}")
         return
 
     if user_member.status in ("administrator", "creator"):
@@ -58,14 +64,13 @@ def fullpromote(update: Update, context: CallbackContext) -> str:
         return
 
     if user_id == bot.id:
-        message.reply_text("Yeah I wish I could promote myself...")
+        message.reply_text("Yeah, I wish I could promote myself...")
         return
 
     # set same perms as bot - bot can't assign higher perms than itself!
-    bot_member = chat.get_member(bot.id)
+    bot_member = get_bot_member(chat.id)
 
     try:
-        chat.promote_member
         bot.promoteChatMember(
             chat.id,
             user_id,
@@ -84,17 +89,17 @@ def fullpromote(update: Update, context: CallbackContext) -> str:
             bot.setChatAdministratorCustomTitle(chat.id, user_id, title)
         bot.sendMessage(
             chat.id,
-            f"<b>{user_member.user.first_name or user_id}</b> was promoted by <b>{message.from_user.first_name}</b> with full perms.",
-            parse_mode=ParseMode.HTML,
-        ) 
+            "<b>{}</b> was promoted{} with full perms."
+                .format(user_member.user.first_name or user_id,
+                        f" by <b>{message.from_user.first_name}</b>" if not message.sender_chat else ""),
+            parse_mode=ParseMode.HTML
+        )
     except BadRequest as err:
         if err.message == "User_not_mutual_contact":
             message.reply_text("How am I mean to promote someone who isn't in the group?")
         else:
-            message.reply_text("An error occured while promoting.")
+            message.reply_text("An error occurred while promoting.")
         return
-
-
 
     log_message = (
         f"<b>{html.escape(chat.title)}:</b>\n"
@@ -109,18 +114,16 @@ def fullpromote(update: Update, context: CallbackContext) -> str:
 @kigcmd(command="promote", can_disable=False)
 @spamcheck
 @connection_status
-@bot_admin
-@can_promote
-@u_admin(UserClass.ADMIN, AdminPerms.CAN_PROMOTE_MEMBERS)
+@bot_admin_check(AdminPerms.CAN_PROMOTE_MEMBERS)
+@user_admin_check(AdminPerms.CAN_PROMOTE_MEMBERS, UserClass.MOD)
 @loggable
-def promote(update: Update, context: CallbackContext) -> str:
+def promote(update: Update, context: CallbackContext) -> Optional[str]:
     bot = context.bot
     args = context.args
 
     message = update.effective_message
     chat = update.effective_chat
-    u = update.effective_user
-    user = res_user(u, message.message_id, chat)
+    user = update.effective_user
 
     user_id, title = extract_user_and_text(message, args)
 
@@ -132,7 +135,8 @@ def promote(update: Update, context: CallbackContext) -> str:
 
     try:
         user_member = chat.get_member(user_id)
-    except:
+    except Exception as e:
+        message.reply_text(f"Error: {e}")
         return
 
     if user_member.status in ("administrator", "creator"):
@@ -144,7 +148,7 @@ def promote(update: Update, context: CallbackContext) -> str:
         return
 
     # set same perms as bot - bot can't assign higher perms than itself!
-    bot_member = chat.get_member(bot.id)
+    bot_member = get_bot_member(bot.id)
 
     try:
         bot.promoteChatMember(
@@ -155,7 +159,6 @@ def promote(update: Update, context: CallbackContext) -> str:
             can_edit_messages=bot_member.can_edit_messages,
             can_delete_messages=bot_member.can_delete_messages,
             can_invite_users=bot_member.can_invite_users,
-            # can_promote_members=bot_member.can_promote_members,
             can_restrict_members=bot_member.can_restrict_members,
             can_pin_messages=bot_member.can_pin_messages,
             can_manage_voice_chats=bot_member.can_manage_voice_chats,
@@ -164,17 +167,19 @@ def promote(update: Update, context: CallbackContext) -> str:
             bot.setChatAdministratorCustomTitle(chat.id, user_id, title)
         bot.sendMessage(
             chat.id,
-            f"<b>{user_member.user.first_name or user_id}</b> was promoted by <b>{message.from_user.first_name}</b>.",
+            "<b>{}</b> was promoted{}.".format(
+                    user_member.user.first_name or user_id,
+                    f' by <b>{message.from_user.first_name}</b>' if not message.sender_chat else ''
+                ),
             parse_mode=ParseMode.HTML,
-        ) 
+        )
+
     except BadRequest as err:
         if err.message == "User_not_mutual_contact":
             message.reply_text("How am I mean to promote someone who isn't in the group?")
         else:
-            message.reply_text("An error occured while promoting.")
+            message.reply_text("An error occurred while promoting.")
         return
-
-
 
     log_message = (
         f"<b>{html.escape(chat.title)}:</b>\n"
@@ -185,21 +190,20 @@ def promote(update: Update, context: CallbackContext) -> str:
 
     return log_message
 
+
 @kigcmd(command="demote", can_disable=False)
 @spamcheck
 @connection_status
-@bot_admin
-@can_promote
-@u_admin(UserClass.ADMIN, AdminPerms.CAN_PROMOTE_MEMBERS)
+@bot_admin_check(AdminPerms.CAN_PROMOTE_MEMBERS)
+@user_admin_check(AdminPerms.CAN_PROMOTE_MEMBERS, UserClass.MOD)
 @loggable
-def demote(update: Update, context: CallbackContext) -> str:
+def demote(update: Update, context: CallbackContext) -> Optional[str]:
     bot = context.bot
     args = context.args
 
     chat = update.effective_chat
     message = update.effective_message
-    u = update.effective_user
-    user = res_user(u, message.message_id, chat)
+    user = update.effective_user
 
     user_id = extract_user(message, args)
     if not user_id:
@@ -210,7 +214,8 @@ def demote(update: Update, context: CallbackContext) -> str:
 
     try:
         user_member = chat.get_member(user_id)
-    except:
+    except Exception as e:
+        message.reply_text(f"Error: {e}")
         return
 
     if user_member.status == "creator":
@@ -242,9 +247,12 @@ def demote(update: Update, context: CallbackContext) -> str:
         )
         bot.sendMessage(
             chat.id,
-            f"<b>{user_member.user.first_name or user_id or None}</b> was demoted by <b>{message.from_user.first_name or None}</b>.",
+            "<b>{}</b> was demoted{}.".format(
+                    user_member.user.first_name or user_id,
+                    f' by <b>{message.from_user.first_name}</b>' if not message.sender_chat else ''
+            ),
             parse_mode=ParseMode.HTML,
-        )  
+        )
 
         log_message = (
             f"<b>{html.escape(chat.title)}:</b>\n"
@@ -264,26 +272,22 @@ def demote(update: Update, context: CallbackContext) -> str:
 @kigcmd(command="title", can_disable=False)
 @spamcheck
 @connection_status
-@bot_admin
-@can_promote
-@u_admin(UserClass.ADMIN, AdminPerms.CAN_PROMOTE_MEMBERS)
+@bot_admin_check(AdminPerms.CAN_PROMOTE_MEMBERS)
+@user_admin_check(AdminPerms.CAN_PROMOTE_MEMBERS, UserClass.MOD)
 @loggable
-def set_title(update: Update, context: CallbackContext) -> str:
+def set_title(update: Update, context: CallbackContext) -> Optional[str]:
     bot = context.bot
     args = context.args
 
     chat = update.effective_chat
     message = update.effective_message
-    u = update.effective_user
-    user = res_user(u, message.message_id, chat)
-
+    user = update.effective_user
 
     user_id, title = extract_user_and_text(message, args)
 
     if not user_id:
         user_id = user.id
         title = " ".join(args)
-        user_member = chat.get_member(user_id)
 
     try:
         user_member = chat.get_member(user_id)
@@ -334,7 +338,7 @@ def set_title(update: Update, context: CallbackContext) -> str:
 
     bot.sendMessage(
         chat.id,
-        f"Sucessfully set title for <code>{user_member.user.first_name or user_id}</code> "
+        f"Successfully set title for <code>{user_member.user.first_name or user_id}</code> "
         f"to <code>{html.escape(title[:16])}</code>!",
         parse_mode=ParseMode.HTML,
     )
@@ -352,17 +356,14 @@ def set_title(update: Update, context: CallbackContext) -> str:
 
 @kigcmd(command=["invitelink", "link"], can_disable=False)
 @spamcheck
-@bot_admin
-@connection_status
-@u_admin(UserClass.ADMIN, AdminPerms.CAN_INVITE_USERS)
+@bot_admin_check(AdminPerms.CAN_INVITE_USERS)
+@user_admin_check(AdminPerms.CAN_INVITE_USERS, UserClass.MOD)
 @loggable
-def invite(update: Update, context: CallbackContext) -> str:
+def invite(update: Update, context: CallbackContext) -> Optional[str]:
     bot = context.bot
     chat = update.effective_chat
     message = update.effective_message
-    u = update.effective_user
-    user = res_user(u, message.message_id, chat)
-
+    user = update.effective_user
 
     if chat.username:
         update.effective_message.reply_text(f"https://t.me/{chat.username}")
@@ -391,27 +392,27 @@ def invite(update: Update, context: CallbackContext) -> str:
         )
 
 
-
-from telethon.tl.types import ChannelParticipantCreator
 @register(pattern="(admin|admins|staff|adminlist)", groups_only=True, no_args=True)
-# @telethn.on(events.NewMessage(pattern=r"(?i)^[/>!](admin|admins|staff|adminlist)($| |@odinrobot($| ))"))
-async def adminlist(event):
+async def adminList(event):
     try:
         _ = event.chat.title
     except:
         return
-    
+
     temp = await event.reply("Fetching full admins list..")
     text = "Admins in **{}**".format(event.chat.title)
+
     admn = telethn.iter_participants(
         event.chat_id, 50, filter=ChannelParticipantsAdmins)
+
     creator = ""
     admin = []
     bots = []
+
     async for user in admn:
-        x = user.status
-        y = user.participant
-        if isinstance(y, ChannelParticipantCreator):
+
+        if isinstance(user.participant, ChannelParticipantCreator):
+
             if user.first_name == "":
                 name = "☠ Zombie"
             else:
@@ -421,22 +422,38 @@ async def adminlist(event):
             if user.first_name == "":
                 name = "☠ Zombie"
             else:
-                name = "[{}](tg://user?id={})".format(user.first_name.split(" bot")[0], user.id) # .split()[0] bots names arent long ig?
+                name = "[{}](tg://user?id={})".format(user.first_name, user.id)  # .split()[0] bots names arent long ig?
             bots.append("\nㅤㅤ• {}".format(name))
+
         else:
-            if user.first_name == "":
-                name = "☠ Zombie"
-            else:
-                name = "[{}](tg://user?id={})".format(user.first_name.split()[0], user.id)
+
+            if user.status.anonymous:
+                continue
+
+            try:
+                if user.first_name == "":
+                    name = "☠ Zombie"
+                else:
+                    name = "[{}](tg://user?id={})".format(user.first_name, user.id)
+            except AttributeError:
+                pass
             admin.append("\nㅤㅤ• {}".format(name))
+
     text += "\nㅤ**Creator:**"
+
     text += creator
+
     text += f"\nㅤ**Admins:** {len(admin)}"
+
     text += "".join(admin)
+
     text += f"\nㅤ**Bots:** {len(bots)}"
+
     text += "".join(bots)
+
     members = await telethn.get_participants(event.chat_id)
     mm = len(members)
+
     text += "\n**Members:** {}".format(mm)
     text += "\n**Note:** these values are up to date"
 
@@ -445,5 +462,6 @@ async def adminlist(event):
 
 def get_help(chat):
     return gs(chat, "admin_help")
+
 
 __mod_name__ = "Admin"
