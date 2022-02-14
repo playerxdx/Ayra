@@ -24,25 +24,29 @@ from .admin_status_helpers import (
 	anon_reply_text as art,
 	anon_callbacks as a_cb,
 	edit_anon_msg as eam,
-	SuperUsers
+	SuperUsers,
 )
 
 
 def bot_is_admin(chat: Chat, perm: Optional[AdminPerms] = None) -> bool:
-	bot_id: int = dispatcher.bot.id
 	if chat.type == "private" or chat.all_members_are_administrators:
 		return True
 
-	try:  # try to get from cache
-		bot_member = B_CACHE[chat.id]
-	except KeyError:  # if not in cache, get from API and save to cache
-		bot_member = dispatcher.bot.getChatMember(chat.id, bot_id)
-		B_CACHE[chat.id] = bot_member
+	bot_member = get_bot_member(chat.id)
 
 	if perm:
 		return getattr(bot_member, perm.value)
 
 	return bot_member.status == "administrator"  # bot can't be owner
+
+
+def get_bot_member(chat_id: int) -> ChatMember:
+	try:
+		return B_CACHE[chat_id]
+	except KeyError:
+		mem = dispatcher.bot.getChatMember(chat_id, dispatcher.bot.id)
+		B_CACHE[chat_id] = mem
+		return mem
 
 
 # decorator, can be used as
@@ -67,9 +71,10 @@ def bot_admin_check(permission: AdminPerms = None):
 			if permission:  # if a perm is required, check for it
 				if getattr(bot_member, permission.value):
 					func(update, context, *args, **kwargs)
+					return
 				return update.effective_message.reply_text(
-						f"I can't perform this action due to missing the following permission: `{permission.name}`\n\
-						Make sure i am an admin and {permission.name.replace('is_', 'am ').replace('_', ' ')}!")
+						f"I can't perform this action due to missing the following permission: `{permission.name}`\n"
+						f"Make sure i am an admin and {permission.name.lower().replace('is_', 'am ').replace('_', ' ')}!")
 
 			if bot_member.status == "administrator":  # if no perm is required, check for admin-ship only
 				return func(update, context, *args, **kwargs)
@@ -143,7 +148,7 @@ def user_admin_check(permission: AdminPerms = None, ustat: UserClass = UserClass
 				# stored data will be (update, context), func, callback message_id
 				a_cb[(message.chat.id, message.message_id)] = (
 					(update, context),
-					func)
+					func, (message, args))
 				message.reply_text(
 					text = art,
 					reply_markup = arm(callback_id)
@@ -200,9 +205,10 @@ def perm_callback_check(upd: Update, _: Ctx):
 
 	msg.delete()
 
-	# update the `Update` attributes by the correct values, so they can be used properly
+	# update the `Update` and `CallbackContext` attributes by the correct values, so they can be used properly
 	setattr(cb[0][0], "_effective_user", upd.effective_user)
-	setattr(cb[0][0], "_effective_message", upd.effective_message)
+	setattr(cb[0][0], "_effective_message", cb[2][0])
+	setattr(cb[0][1], "args", cb[2][1])
 
 	return cb[1](cb[0][0], cb[0][1])  # return func(update, context)
 

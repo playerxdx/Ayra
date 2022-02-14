@@ -59,14 +59,14 @@ class SuperUsers(Enum):
 
 def anon_reply_markup(cb_id: str) -> InlineKeyboardMarkup:
 	return InlineKeyboardMarkup(
-		[
 			[
-				InlineKeyboardButton(
-						text = 'Prove identity',
-						callback_data = cb_id
-				)
+				[
+					InlineKeyboardButton(
+							text = 'Prove identity',
+							callback_data = cb_id
+					)
+				]
 			]
-		]
 	)
 
 
@@ -77,7 +77,7 @@ def edit_anon_msg(msg: Message, text: str):
 	"""
 	edit anon check message and remove the button
 	"""
-	msg.edit_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=None)
+	msg.edit_text(text, parse_mode = ParseMode.MARKDOWN, reply_markup = None)
 
 
 anon_callbacks = {}
