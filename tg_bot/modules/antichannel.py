@@ -9,7 +9,7 @@ from telegram.ext import CallbackContext
 
 from .helper_funcs.chat_status import connection_status
 from .log_channel import loggable
-from ..modules.helper_funcs.admin_status import user_admin_check, bot_admin_check, AdminPerms, bot_is_admin
+from ..modules.helper_funcs.admin_status import user_admin_check, bot_admin_check, AdminPerms, UserClass, bot_is_admin
 import html
 from ..modules.sql.antichannel_sql import antichannel_status, disable_antichannel, enable_antichannel
 
@@ -17,7 +17,7 @@ from ..modules.sql.antichannel_sql import antichannel_status, disable_antichanne
 @kigcmd(command="antichannel", group=100)
 @connection_status
 @bot_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS)
-@user_admin_check(AdminPerms.CAN_CHANGE_INFO, allow_mods = True)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO, UserClass.MOD)
 @loggable
 def set_antichannel(update: Update, context: CallbackContext) -> Optional[str]:
     message = update.effective_message

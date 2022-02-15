@@ -19,6 +19,7 @@ from .helper_funcs.admin_status import (
     user_admin_check,
     bot_admin_check,
     AdminPerms,
+    UserClass,
     user_is_admin
 )
 
@@ -175,7 +176,7 @@ def check_channel_flood(update: Update, _: CallbackContext) -> Optional[str]:
 
 @kigcallback(pattern=r"unmute_flooder")
 @bot_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS)
-@user_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS, allow_mods = True, noreply = True)
+@user_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS, UserClass.MOD, noreply = True)
 @loggable
 def flood_button(update: Update, context: CallbackContext) -> str:
     bot = context.bot
@@ -214,11 +215,11 @@ def flood_button(update: Update, context: CallbackContext) -> str:
             update.effective_message.edit_text("An error occurred while unmuting!\n<code>{}</code>".format(e))
 
 
-@kigcmd(command='setflood', pass_args=True)
+@kigcmd(command='setflood', pass_args=True, filters=Filters.chat_type.groups)
 @spamcheck
 @connection_status
 @bot_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS)
-@user_admin_check(AdminPerms.CAN_CHANGE_INFO, allow_mods = True)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO, UserClass.MOD)
 @loggable
 def set_flood(update, context) -> Optional[str]:  # sourcery no-metrics
     chat = update.effective_chat  # type: Optional[Chat]
@@ -303,7 +304,7 @@ def flood(update: Update, _: CallbackContext):
 @kigcmd(command=["setfloodmode", "floodmode"], pass_args=True)
 @spamcheck
 @bot_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS)
-@user_admin_check(AdminPerms.CAN_CHANGE_INFO, allow_mods = True)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO, UserClass.MOD)
 @connection_status
 @loggable
 def set_flood_mode(update, context) -> Optional[str]:  # sourcery no-metrics
@@ -344,18 +345,17 @@ def set_flood_mode(update, context) -> Optional[str]:  # sourcery no-metrics
             )
         return (
             "<b>{}:</b>\n"
-            "#FLOODMODE\n"
             "<b>Admin:</b> {}\n"
-            "New Flood Mode: {}.".format(
+            "Has changed antiflood mode. User will {}.".format(
+                settypeflood,
                 html.escape(chat.title),
                 mention_html(user.id, user.first_name),
-                settypeflood,
             )
         )
     else:
-        flood_type = get_flood_type(chat.id)
+        settypeflood = get_flood_type(chat.id)
 
-        msg.reply_text("Sending more message than flood limit will result in {}.".format(flood_type))
+        msg.reply_text("Sending more message than flood limit will result in {}.".format(settypeflood))
 
     return ""
 
