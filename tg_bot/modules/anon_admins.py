@@ -1,42 +1,39 @@
 import html
+from typing import Optional
+
 from telegram import ParseMode, Update
 from telegram.error import BadRequest
 from telegram.ext import CallbackContext
-
 from telegram.utils.helpers import mention_html
 
-from tg_bot import spamcheck
-from tg_bot.modules.helper_funcs.chat_status import (
-    ADMIN_CACHE,
-    bot_admin,
-    can_promote_anon,
-    connection_status,
+from .. import spamcheck
+from .helper_funcs.chat_status import connection_status
+from .helper_funcs.extraction import extract_user, extract_user_and_text
+from .helper_funcs.decorators import kigcmd
+from .log_channel import loggable
+from .helper_funcs.admin_status import (
+    user_is_admin as admin,
+    user_admin_check,
+    bot_admin_check,
+    bot_is_admin as b_admin,
+    AdminPerms,
+    UserClass,
+    get_bot_member,
 )
-
-from tg_bot.modules.helper_funcs.extraction import extract_user, extract_user_and_text
-from tg_bot.modules.log_channel import loggable
-from tg_bot.modules.helper_funcs.decorators import kigcmd
-
-
-from ..modules.helper_funcs.anonymous import resolve_user, user_admin as u_admin, AdminPerms, UserClass
-
-
 
 @kigcmd(command="setanon", can_disable=False)
 @spamcheck
 @connection_status
-@bot_admin
-@can_promote_anon
-@u_admin(UserClass.ADMIN, AdminPerms.CAN_PROMOTE_MEMBERS)
+@bot_admin_check(AdminPerms.CAN_PROMOTE_MEMBERS)
+@user_admin_check(AdminPerms.CAN_PROMOTE_MEMBERS)
 @loggable
-def promoteanon(update: Update, context: CallbackContext) -> str:
+def promoteanon(update: Update, context: CallbackContext) -> Optional[str]:
     bot = context.bot
     args = context.args
 
     message = update.effective_message
     chat = update.effective_chat
-    u = update.effective_user
-    user = resolve_user(u, message.message_id, chat)
+    user = update.effective_user
 
     if chat.type == "private":
         message.reply_text("This command is meant to be used in groups not PM!")
@@ -49,7 +46,8 @@ def promoteanon(update: Update, context: CallbackContext) -> str:
 
     try:
         user_member = chat.get_member(user_id)
-    except:
+    except Exception as e:
+        message.reply_text("Error:\n`{}`".format(e))
         return
 
     if user_member.status == "creator":
@@ -61,11 +59,11 @@ def promoteanon(update: Update, context: CallbackContext) -> str:
         return
 
     if user_id == bot.id:
-        message.reply_text("Yeah I wish I could promote myself...")
+        message.reply_text("Yeah, I wish I could promote myself...")
         return
 
     # set same perms as bot - bot can't assign higher perms than itself!
-    bot_member = chat.get_member(bot.id)
+    bot_member = get_bot_member(chat.id)
     # set same perms as user -  to keep the other perms untouched!
     u_member = chat.get_member(user_id)
     # the perms may be not same as old ones if the bot doesn't have the rights to change them but can't do anything about it
@@ -89,10 +87,7 @@ def promoteanon(update: Update, context: CallbackContext) -> str:
             can_manage_voice_chats=bool(bot_member.can_manage_voice_chats and u_member.can_manage_voice_chats),
 
         )
-        try:
-            ADMIN_CACHE.pop(update.effective_chat.id)
-        except KeyError:
-            pass
+
         rmsg = f"<b>{user_member.user.first_name or user_id}</b> is now anonymous"
         if title:
             rmsg += f" with title <code>{html.escape(title)}</code>"
@@ -105,10 +100,8 @@ def promoteanon(update: Update, context: CallbackContext) -> str:
         if err.message == "User_not_mutual_contact":
             message.reply_text("How am I mean to promote someone who isn't in the group?")
         else:
-            message.reply_text("An error occured while promoting.")
+            message.reply_text("An error occurred while promoting.")
         return
-
-
 
     log_message = (
         f"<b>{html.escape(chat.title)}:</b>\n"
@@ -123,18 +116,16 @@ def promoteanon(update: Update, context: CallbackContext) -> str:
 @kigcmd(command="unsetanon", can_disable=False)
 @spamcheck
 @connection_status
-@bot_admin
-@can_promote_anon
-@u_admin(UserClass.ADMIN, AdminPerms.CAN_PROMOTE_MEMBERS)
+@bot_admin_check(AdminPerms.CAN_PROMOTE_MEMBERS)
+@user_admin_check(AdminPerms.CAN_PROMOTE_MEMBERS)
 @loggable
-def demoteanon(update: Update, context: CallbackContext) -> str:
+def demoteanon(update: Update, context: CallbackContext) -> Optional[str]:
     bot = context.bot
     args = context.args
 
     chat = update.effective_chat
     message = update.effective_message
-    u = update.effective_user
-    user = resolve_user(u, message.message_id, chat)
+    user = update.effective_user
 
     if chat.type == "private":
         message.reply_text("This command is meant to be used in groups not PM!")
@@ -146,7 +137,8 @@ def demoteanon(update: Update, context: CallbackContext) -> str:
 
     try:
         user_member = chat.get_member(user_id)
-    except:
+    except Exception as e:
+        message.reply_text("Error:\n`{}`".format(e))
         return
 
     if user_member.status == "creator" and user_id == user.id:
@@ -170,7 +162,7 @@ def demoteanon(update: Update, context: CallbackContext) -> str:
         return
 
     # set same perms as bot - bot can't assign higher perms than itself!
-    bot_member = chat.get_member(bot.id)
+    bot_member = get_bot_member(bot.id)
     # set same perms as user -  to keep the other perms untouched!
     u_member = chat.get_member(user_id)
     # the perms may be not same as old ones if the bot doesn't have the rights to change them but can't do anything about it
@@ -192,10 +184,6 @@ def demoteanon(update: Update, context: CallbackContext) -> str:
             can_manage_voice_chats=bool(bot_member.can_manage_voice_chats and u_member.can_manage_voice_chats),
         )
 
-        try:
-            ADMIN_CACHE.pop(update.effective_chat.id)          
-        except KeyError:
-            pass
         rmsg = f"<b>{user_member.user.first_name or user_id}</b> is no longer anonymous"
         bot.sendMessage(
             chat.id,

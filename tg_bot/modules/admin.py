@@ -19,10 +19,8 @@ from tg_bot.modules.language import gs
 from tg_bot.modules.helper_funcs.decorators import kigcmd, register
 
 from .helper_funcs.admin_status import (
-    user_is_admin as admin,
     user_admin_check,
     bot_admin_check,
-    bot_is_admin as b_admin,
     AdminPerms,
     UserClass,
     get_bot_member,

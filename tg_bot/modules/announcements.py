@@ -1,7 +1,16 @@
 import html
 from typing import Optional
 
-from telegram import Update, ParseMode
+from telegram.chat import Chat
+from telegram.chatmember import ChatMember
+from tg_bot.modules.helper_funcs.chat_status import ADMIN_CACHE
+from .helper_funcs.admin_status import A_CACHE, B_CACHE
+
+from tg_bot.modules.log_channel import loggable
+
+from telegram.chatmemberupdated import ChatMemberUpdated
+from telegram import Update
+
 from telegram.ext import CallbackContext
 from telegram.chatmemberupdated import ChatMemberUpdated
 from telegram.ext.chatmemberhandler import ChatMemberHandler
@@ -395,6 +404,8 @@ def admincacheupdates(update: Update, _: CallbackContext):
     ):
         try:
             ADMIN_CACHE.pop(update.effective_chat.id)
+            A_CACHE.pop(update.effective_chat.id)
+            B_CACHE.pop(update.effective_chat.id)
         except KeyError:
             pass
 
