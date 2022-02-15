@@ -1,13 +1,22 @@
 import html
 import time
-import requests
+
 from datetime import datetime
 from io import BytesIO
-from tg_bot.modules.feds import welcome_fed
-from tg_bot.modules.log_channel import loggable
-from tg_bot.modules.sql.users_sql import get_user_com_chats
-import tg_bot.modules.sql.antispam_sql as sql
-from tg_bot import (
+
+from telegram import ParseMode, Update
+from telegram.error import BadRequest, TelegramError
+from telegram.ext import CallbackContext, Filters
+from telegram.utils.helpers import mention_html
+
+from .feds import welcome_fed
+from .helper_funcs.admin_status import user_admin_check, user_is_admin, AdminPerms, u_na_errmsg
+from .log_channel import loggable
+from .sql.users_sql import get_user_com_chats
+from .helper_funcs.extraction import extract_user, extract_user_and_text
+from .helper_funcs.misc import send_to_list
+from .helper_funcs.decorators import kigcmd, kigmsg
+from .. import (
     DEV_USERS,
     GBAN_LOGS,
     MESSAGE_DUMP,
@@ -21,22 +30,12 @@ from tg_bot import (
     dispatcher,
     log,
 )
-from tg_bot.modules.helper_funcs.chat_status import (
-    is_user_admin,
-    support_plus,
-    u_can_change_info,
-    user_admin,
-)
-from tg_bot.modules.helper_funcs.extraction import extract_user, extract_user_and_text
-from tg_bot.modules.helper_funcs.misc import send_to_list
-from telegram import ParseMode, Update
-from telegram.error import BadRequest, TelegramError, Unauthorized
-from telegram.ext import CallbackContext, Filters
-from telegram.utils.helpers import mention_html
-from tg_bot.modules.helper_funcs.chat_status import dev_plus
+from .helper_funcs.chat_status import support_plus
+
+import tg_bot.modules.sql.antispam_sql as sql
+
 from spamwatch.errors import SpamWatchError, Error, UnauthorizedError, NotFoundError, Forbidden, TooManyRequests
-from tg_bot.modules.helper_funcs.decorators import kigcmd, kigmsg
-from ..modules.helper_funcs.anonymous import user_admin as u_admin, AdminPerms, resolve_user as res_user, UserClass
+
 
 GBAN_ENFORCE_GROUP = -1
 
@@ -68,29 +67,6 @@ UNGBAN_ERRORS = {
     "User not found",
 }
 
-SPB_MODE = True
-
-
-@kigcmd(command="spb")
-@dev_plus
-def spbtoggle(update: Update, _):
-    from tg_bot import SPB_MODE
-    args = update.effective_message.text.split(None, 1)
-    message = update.effective_message
-    print(SPB_MODE)
-    if len(args) > 1:
-        if args[1] in ("yes", "on"):
-            SPB_MODE = True
-            message.reply_animation("https://telegra.ph/file/a49e7bef1cc664eabcb26.mp4",
-                                    caption="SpamProtection API bans are now enabled.\nAll hail @Intellivoid.")
-        elif args[1] in ("no", "off"):
-            SPB_MODE = False
-            message.reply_text("SpamProtection API bans are now disabled.")
-    elif SPB_MODE:
-        message.reply_text("SpamProtection API bans are currently enabled.")
-    else:
-        message.reply_text("SpamProtection API bans are currenty disabled.")
-
 
 @kigcmd(command="gban")
 @support_plus
@@ -99,7 +75,6 @@ def gban(update: Update, context: CallbackContext):  # sourcery no-metrics
     message = update.effective_message
     user = update.effective_user
     chat = update.effective_chat
-    log_message = ""
 
     user_id, reason = extract_user_and_text(message, args)
 
@@ -109,37 +84,37 @@ def gban(update: Update, context: CallbackContext):  # sourcery no-metrics
         )
         return
 
-    if int(user_id) in DEV_USERS:
+    elif int(user_id) in DEV_USERS:
         message.reply_text(
             "That user is part of my Developers\nI can't act against our own."
         )
         return
 
-    if int(user_id) in SUDO_USERS:
+    elif int(user_id) in SUDO_USERS:
         message.reply_text(
             "I spy, with my little eye... a Sudo! Why are you guys turning on each other?"
         )
         return
 
-    if int(user_id) in SUPPORT_USERS:
+    elif int(user_id) in SUPPORT_USERS:
         message.reply_text(
             "OOOH someone's trying to gban a Support User! *grabs popcorn*"
         )
         return
 
-    if int(user_id) in WHITELIST_USERS:
+    elif int(user_id) in WHITELIST_USERS:
         message.reply_text("That's a Whitelisted user! They cannot be banned!")
         return
 
-    if int(user_id) in MOD_USERS:
+    elif int(user_id) in MOD_USERS:
         message.reply_text("That's a Moderator, why do you want to ban them?")
         return
 
-    if int(user_id) in (777000, 1087968824):
+    elif int(user_id) in (777000, 1087968824, 136817688):
         message.reply_text("Huh, why would I gban Telegram bots?")
         return
 
-    if user_id == bot.id:
+    elif user_id == bot.id:
         message.reply_text("Go find someone else to play with noob.")
         return
 
@@ -163,10 +138,9 @@ def gban(update: Update, context: CallbackContext):  # sourcery no-metrics
             )
             return
 
-        old_reason = sql.update_gban_reason(
+        if old_reason := sql.update_gban_reason(
             user_id, user_chat.username or user_chat.first_name, reason
-        )
-        if old_reason:
+        ):
             message.reply_text(
                 "This user is already gbanned, for the following reason:\n"
                 "<code>{}</code>\n"
@@ -205,15 +179,15 @@ def gban(update: Update, context: CallbackContext):  # sourcery no-metrics
 
     if reason:
         if chat.type == chat.SUPERGROUP and chat.username:
-            log_message += f'\n<b>Reason:</b> <a href="https://telegram.me/{chat.username}/{message.message_id}">{reason}</a>'
+            log_message += f'\n<b>Reason:</b> <a href="https://t.me/{chat.username}/{message.message_id}">{reason}</a>'
         else:
             log_message += f"\n<b>Reason:</b> <code>{reason}</code>"
 
     if GBAN_LOGS:
         try:
-            log = bot.send_message(GBAN_LOGS, log_message, parse_mode=ParseMode.HTML)
+            bot.send_message(GBAN_LOGS, log_message, parse_mode=ParseMode.HTML)
         except BadRequest:
-            log = bot.send_message(
+            bot.send_message(
                 GBAN_LOGS,
                 log_message
                 + "\n\nFormatting has been disabled due to an unexpected error.",
@@ -283,7 +257,7 @@ def gban(update: Update, context: CallbackContext):  # sourcery no-metrics
             "#GBAN"
             "You have been marked as Malicious and as such have been banned from any future groups we manage."
             f"\n<b>Reason:</b> <code>{html.escape(user.reason)}</code>"
-            f"</b>Appeal Chat:</b> @TheBotsSupport",
+            f"\n</b>Appeal Chat:</b> @TheBotsSupport",
             parse_mode=ParseMode.HTML,
         )
     except:
@@ -297,7 +271,6 @@ def ungban(update: Update, context: CallbackContext):  # sourcery no-metrics
     message = update.effective_message
     user = update.effective_user
     chat = update.effective_chat
-    log_message = ""
 
     user_id = extract_user(message, args)
 
@@ -338,9 +311,9 @@ def ungban(update: Update, context: CallbackContext):  # sourcery no-metrics
 
     if GBAN_LOGS:
         try:
-            log = bot.send_message(GBAN_LOGS, log_message, parse_mode=ParseMode.HTML)
-        except BadRequest as excp:
-            log = bot.send_message(
+            bot.send_message(GBAN_LOGS, log_message, parse_mode=ParseMode.HTML)
+        except BadRequest:
+            bot.send_message(
                 GBAN_LOGS,
                 log_message
                 + "\n\nFormatting has been disabled due to an unexpected error.",
@@ -428,32 +401,32 @@ def gbanlist(update: Update, _):
 
 
 def check_and_ban(update, user_id, should_message=True):
-    from tg_bot import SPB_MODE
+    # from tg_bot import SPB_MODE
     chat = update.effective_chat  # type: Optional[Chat]
-    if SPB_MODE:
-        try:
-            apst = requests.get(f'https://api.intellivoid.net/spamprotection/v1/lookup?query={user_id}')
-            api_status = apst.status_code
-            if api_status == 200:
-                try:
-                    status = apst.json()
-                    try:
-                        bl_check = (status.get("results").get("attributes").get("is_blacklisted"))
-                    except:
-                        bl_check = False
+    # if SPB_MODE:
+    #     try:
+    #         apst = requests.get(f'https://api.intellivoid.net/spamprotection/v1/lookup?query={user_id}')
+    #         api_status = apst.status_code
+    #         if api_status == 200:
+    #             try:
+    #                 status = apst.json()
+    #                 try:
+    #                     bl_check = (status.get("results").get("attributes").get("is_blacklisted"))
+    #                 except:
+    #                     bl_check = False
 
-                    if bl_check:
-                        bl_res = (status.get("results").get("attributes").get("blacklist_reason"))
-                        chat.ban_member(user_id)
-                        if should_message:
-                            update.effective_message.reply_text(
-                                f"This person was blacklisted on @SpamProtectionBot and has been removed!\nReason: <code>{bl_res}</code>",
-                                parse_mode=ParseMode.HTML,
-                            )
-                except BaseException:
-                    log.warning("Spam Protection API is unreachable.")
-        except BaseException as e:
-            log.info(f'SpamProtection was disabled due to {e}')
+    #                 if bl_check:
+    #                     bl_res = (status.get("results").get("attributes").get("blacklist_reason"))
+    #                     chat.ban_member(user_id)
+    #                     if should_message:
+    #                         update.effective_message.reply_text(
+    #                             f"This person was blacklisted on @SpamProtectionBot and has been removed!\nReason: <code>{bl_res}</code>",
+    #                             parse_mode=ParseMode.HTML,
+    #                         )
+    #             except BaseException:
+    #                 log.warning("Spam Protection API is unreachable.")
+    #     except BaseException as e:
+    #         log.info(f'SpamProtection was disabled due to {e}')
     try:
         sw_ban = sw.get_ban(int(user_id))
     except AttributeError:
@@ -500,7 +473,7 @@ def enforce_gban(update: Update, context: CallbackContext):
             and chat.get_member(bot.id).can_restrict_members
         ):
 
-            if user and not is_user_admin(update, user.id):
+            if user and not user_is_admin(update, user.id, channels = True):
                 check_and_ban(update, user.id)
                 welcome_fed(update, chat, user.id)
                 return
@@ -513,7 +486,7 @@ def enforce_gban(update: Update, context: CallbackContext):
 
             if msg.reply_to_message:
                 user = msg.reply_to_message.from_user
-                if user and not is_user_admin(update, user.id):
+                if user and not user_is_admin(update, user.id, channels = True):
                     check_and_ban(update, user.id, should_message=False)
                     welcome_fed(update, chat, user.id)
     except Forbidden as e:
@@ -529,15 +502,19 @@ def enforce_gban(update: Update, context: CallbackContext):
 
 @kigcmd(command=["antispam", "gbanstat"])
 @spamcheck
-@u_admin(UserClass.ADMIN, AdminPerms.CAN_CHANGE_INFO)
+@user_admin_check()
 @loggable
 def gbanstat(update: Update, context: CallbackContext) -> str:
     args = context.args
-    u = update.effective_user
-    message = update.effective_message
     chat = update.effective_chat
-    user = res_user(u, message.message_id, chat)
+    user = update.effective_user
+    message = update.effective_message
+
     if len(args) > 0:
+        if not user_is_admin(update, user.id, perm = AdminPerms.CAN_CHANGE_INFO):
+            message.reply_text("You don't have enough rights!")
+            return u_na_errmsg(message, AdminPerms.CAN_CHANGE_INFO)
+
         if args[0].lower() in ["on", "yes"]:
             sql.enable_gbans(update.effective_chat.id)
             update.effective_message.reply_text(
@@ -599,7 +576,7 @@ def __user_info__(user_id):
         user = sql.get_gbanned_user(user_id)
         if user.reason:
             text += f"\nㅤ<b>Reason:</b> <code>{html.escape(user.reason)}</code>"
-        text += f"\nㅤ<b>Appeal Chat:</b> @TheBotsSupport"
+        text += "\nㅤ<b>Appeal Chat:</b> @TheBotsSupport"
     else:
         text = ""
     return text

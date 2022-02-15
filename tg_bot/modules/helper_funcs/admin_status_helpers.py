@@ -37,24 +37,19 @@ class AdminPerms(Enum):
 	IS_ANONYMOUS = 'is_anonymous'
 
 
-class UserClass(Enum):
-	ADMIN = SUDO_USERS
-	MOD = MOD_USERS
-
-
 class ChatStatus(Enum):
 	CREATOR = "creator"
 	ADMIN = "administrator"
 
 
-class SuperUsers(Enum):
-	Owner = [OWNER_ID]
-	SysAdmin = [OWNER_ID, SYS_ADMIN]
-	Devs = DEV_USERS
-	Sudos = SUDO_USERS
-	Supports = SUPPORT_USERS
-	Whitelist = WHITELIST_USERS
-	Mods = MOD_USERS
+# class SuperUsers(Enum):
+# 	Owner = [OWNER_ID]
+# 	SysAdmin = [OWNER_ID, SYS_ADMIN]
+# 	Devs = DEV_USERS
+# 	Sudos = SUDO_USERS
+# 	Supports = SUPPORT_USERS
+# 	Whitelist = WHITELIST_USERS
+# 	Mods = MOD_USERS
 
 
 def anon_reply_markup(cb_id: str) -> InlineKeyboardMarkup:
@@ -78,6 +73,13 @@ def edit_anon_msg(msg: Message, text: str):
 	edit anon check message and remove the button
 	"""
 	msg.edit_text(text, parse_mode = ParseMode.MARKDOWN, reply_markup = None)
+
+
+def user_is_not_admin_errmsg(message: Message, permission: AdminPerms = None, noreply: bool = False):
+	errmsg = f"You lack the following permission for this command:\n`{permission.value}`!"
+	if noreply:
+		return message.callback_query.answer(errmsg, show_alert = True)
+	return message.reply_text(errmsg, parse_mode = ParseMode.MARKDOWN)
 
 
 anon_callbacks = {}

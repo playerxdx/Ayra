@@ -103,19 +103,19 @@ def get_id(update: Update, context: CallbackContext):
             msg.reply_text(
 
                 f"<b>Telegram IDs:</b>\n"
-                f"ㅤ{html.escape(user.first_name)}\nㅤㅤ<code>{user.id}</code>.\n",
+                f"{html.escape(user.first_name or user.title)}\n  <code>{user.id}</code>.\n",
 
                 parse_mode=ParseMode.HTML,
             )
     else:
         if chat.type == "private":
             msg.reply_text(
-                f"<b>Your id is:</b> \nㅤㅤ<code>{chat.id}</code>.", parse_mode=ParseMode.HTML
+                f"<b>Your id is:</b> \n  <code>{chat.id}</code>.", parse_mode=ParseMode.HTML
             )
 
         else:
             msg.reply_text(
-                f"<b>This group's id is:</b> \nㅤㅤ<code>{chat.id}</code>.", parse_mode=ParseMode.HTML
+                f"<b>This group's id is:</b> \n  <code>{chat.id}</code>.", parse_mode=ParseMode.HTML
             )
 
 @kigcmd(command='gifid')

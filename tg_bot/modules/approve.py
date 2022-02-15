@@ -6,25 +6,33 @@ from telegram.ext import CallbackContext, Filters
 from telegram.utils.helpers import mention_html
 
 import tg_bot.modules.sql.approve_sql as sql
-from tg_bot import SUDO_USERS
-from tg_bot.modules.helper_funcs.chat_status import user_admin
+
 from tg_bot.modules.helper_funcs.decorators import kigcmd, kigcallback
 from tg_bot.modules.helper_funcs.extraction import extract_user
 from tg_bot.modules.log_channel import loggable
 from tg_bot import SUDO_USERS, spamcheck
-from ..modules.helper_funcs.anonymous import user_admin as u_admin, AdminPerms, resolve_user as res_user, UserClass
+from .helper_funcs.admin_status import (
+    user_admin_check,
+    bot_admin_check,
+    AdminPerms,
+    get_bot_member,
+    user_is_admin
+)
+
+# TODO: approve channels
+
 
 @kigcmd(command='approve', filters=Filters.chat_type.groups)
 @spamcheck
-@u_admin(UserClass.ADMIN, AdminPerms.CAN_CHANGE_INFO)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO)
 @loggable
 def approve(update: Update, context: CallbackContext) -> str:
     message = update.effective_message
     chat_title = message.chat.title
     chat = update.effective_chat
     args = context.args
-    u = update.effective_user
-    user = res_user(u, message.message_id, chat)
+    user = update.effective_user
+
     user_id = extract_user(message, args)
     if not user_id:
         message.reply_text(
@@ -63,15 +71,14 @@ def approve(update: Update, context: CallbackContext) -> str:
 
 @kigcmd(command='unapprove', filters=Filters.chat_type.groups)
 @spamcheck
-@u_admin(UserClass.ADMIN, AdminPerms.CAN_CHANGE_INFO)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO)
 @loggable
 def disapprove(update: Update, context: CallbackContext):
     message = update.effective_message
     chat_title = message.chat.title
     chat = update.effective_chat
     args = context.args
-    u = update.effective_user
-    user = res_user(u, message.message_id, chat)
+    user = update.effective_user
     user_id = extract_user(message, args)
     if not user_id:
         message.reply_text(
@@ -102,7 +109,7 @@ def disapprove(update: Update, context: CallbackContext):
 
 @kigcmd(command='approved', filters=Filters.chat_type.groups)
 @spamcheck
-@user_admin
+@user_admin_check()
 def approved(update: Update, _: CallbackContext):
     message = update.effective_message
     chat_title = message.chat.title
@@ -121,7 +128,7 @@ def approved(update: Update, _: CallbackContext):
 
 @kigcmd(command='approval', filters=Filters.chat_type.groups)
 @spamcheck
-@user_admin
+@user_admin_check()
 def approval(update, context):
     message = update.effective_message
     chat = update.effective_chat

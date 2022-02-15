@@ -10,7 +10,7 @@ from .. import spamcheck
 from .log_channel import loggable
 from .helper_funcs.decorators import kigcmd
 from .helper_funcs.chat_status import connection_status
-from .helper_funcs.admin_status import user_admin_check, user_is_admin, bot_admin_check, bot_is_admin, AdminPerms, UserClass
+from .helper_funcs.admin_status import user_admin_check, bot_admin_check, AdminPerms
 
 
 
@@ -18,7 +18,7 @@ from .helper_funcs.admin_status import user_admin_check, user_is_admin, bot_admi
 @spamcheck
 @connection_status
 @bot_admin_check(AdminPerms.CAN_CHANGE_INFO)
-@user_admin_check(AdminPerms.CAN_CHANGE_INFO, UserClass.MOD)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO, allow_mods = True)
 @loggable
 def setpic(update: Update, context: CallbackContext) -> str:
     bot = context.bot
@@ -66,7 +66,7 @@ def setpic(update: Update, context: CallbackContext) -> str:
 @spamcheck
 @connection_status
 @bot_admin_check(AdminPerms.CAN_CHANGE_INFO)
-@user_admin_check(AdminPerms.CAN_CHANGE_INFO, UserClass.MOD)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO, allow_mods = True)
 @loggable
 def delpic(update: Update, context: CallbackContext) -> str:
     bot = context.bot
@@ -96,7 +96,7 @@ def delpic(update: Update, context: CallbackContext) -> str:
 @spamcheck
 @connection_status
 @bot_admin_check(AdminPerms.CAN_CHANGE_INFO)
-@user_admin_check(AdminPerms.CAN_CHANGE_INFO, UserClass.MOD)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO, allow_mods = True)
 @loggable
 def set_title(update: Update, context: CallbackContext) -> str:
     bot = context.bot
@@ -140,7 +140,7 @@ def set_title(update: Update, context: CallbackContext) -> str:
 @spamcheck
 @connection_status
 @bot_admin_check(AdminPerms.CAN_CHANGE_INFO)
-@user_admin_check(AdminPerms.CAN_CHANGE_INFO, UserClass.MOD)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO, allow_mods = True)
 @loggable
 def set_desc(update: Update, context: CallbackContext) -> str:
     bot = context.bot
@@ -185,7 +185,7 @@ def set_desc(update: Update, context: CallbackContext) -> str:
 @spamcheck
 @connection_status
 @bot_admin_check(AdminPerms.CAN_CHANGE_INFO)
-@user_admin_check(AdminPerms.CAN_CHANGE_INFO, UserClass.MOD)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO, allow_mods = True)
 @loggable
 def set_stk_set(update: Update, context: CallbackContext) -> str:
     bot = context.bot

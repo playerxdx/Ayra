@@ -12,12 +12,9 @@ from .helper_funcs.extraction import extract_user, extract_user_and_text
 from .helper_funcs.decorators import kigcmd
 from .log_channel import loggable
 from .helper_funcs.admin_status import (
-    user_is_admin as admin,
     user_admin_check,
     bot_admin_check,
-    bot_is_admin as b_admin,
     AdminPerms,
-    UserClass,
     get_bot_member,
 )
 
