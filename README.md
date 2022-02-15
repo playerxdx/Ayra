@@ -17,7 +17,7 @@
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/cfb691a93a064d9ea753ef2b5fccf797)](https://www.codacy.com/manual/OdinRobot/OdinRobot?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=OdinRobot/OdinRobot&amp;utm_campaign=Badge_Grade)
 
 
-A modular telegram Python bot running on python3 with an sqlalchemy database.
+A modular telegram Group management Python bot running on python3 with an sqlalchemy database.
 
 Originally a marie fork
 
@@ -30,8 +30,9 @@ The Support group can be reached out to at [The support group](https://t.me/TheB
 ## Setting up the bot (Read this before trying to use!):
 
 
-# How to setup
-
+<details>
+  <summary>How to setup</summary>
+  
 - `git clone https://github.com/OdinRobot/OdinRobot`
 - `cd OdinRobot`
 - `cp sample_config.ini config.ini`
@@ -40,23 +41,22 @@ The Support group can be reached out to at [The support group](https://t.me/TheB
 - *And finally* `python3 -m tg_bot`
 
 *Enjoy!*
-
+</details>
 
 For queries or any issues regarding the bot please open an issue ticket or visit us at [The support group](https://t.me/TheBotsSupport) 
 For for the latest news visit us at [the news channel](https://t.me/LukeBots) 
 
 ## Credits
-This fork is based on [Kigyō](https://github.com/Dank-del/EnterpriseALRobot).
-The bot is based of on the original work done by [PaulSonOfLars](https://github.com/PaulSonOfLars)
-This repo was just reamped to suit an Anime-centric community. All original credits go to Paul and his dedication, Without his efforts, this fork would not have been possible!
+This fork is based on [Kigyō](https://github.com/Dank-del/EnterpriseALRobot), which is based of on the original work done by [PaulSonOfLars](https://github.com/PaulSonOfLars)
 
+All original credits go to Paul and his dedication, Without his efforts, this fork would not have been possible!
+
+Huge thanks to [Dank-del](https://github.com/Dank-del) and to [everyone else](https://github.com/OdinRobot/OdinRobot/graphs/contributors) who helped in making this project
 
 Should any be missing kindly let us know at [The support group](https://t.me/TheBotsSupport) or simply submit a pull request on the readme.
 
 
 -------------------------------------------------------------------------------------
-
-
-<a href="http://u.fsf.org/16e"><img src="https://static.fsf.org/nosvn/images/badges/fsfs_icons_red-bg.png" alt="Free Software, Free Society"></a>   
+  
 
 *this repo is free and open source software and supports the right to read, distribute and repair.*
