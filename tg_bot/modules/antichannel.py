@@ -13,10 +13,10 @@ from ..modules.helper_funcs.admin_status import user_admin_check, bot_admin_chec
 import html
 from ..modules.sql.antichannel_sql import antichannel_status, disable_antichannel, enable_antichannel
 
+
 @kigcmd(command="antichannel", group=100)
 @connection_status
 @bot_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS)
-@user_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS, UserClass.MOD)
 @user_admin_check(AdminPerms.CAN_CHANGE_INFO, UserClass.MOD)
 @loggable
 def set_antichannel(update: Update, context: CallbackContext) -> Optional[str]:

@@ -6,7 +6,7 @@ from functools import wraps
 from typing import Optional
 from threading import RLock
 
-from telegram import Chat, Update, ChatMember, ParseMode
+from telegram import Chat, Update, ChatMember
 from telegram.ext import CallbackContext as Ctx
 
 from tg_bot import dispatcher
@@ -25,6 +25,7 @@ from .admin_status_helpers import (
 	anon_callbacks as a_cb,
 	edit_anon_msg as eam,
 	SuperUsers,
+	user_is_not_admin_errmsg as u_na_errmsg,
 )
 
 
@@ -132,7 +133,7 @@ def get_mem_from_cache(user_id: int, chat_id: int) -> ChatMember:
 # decorator, can be used as @bot_admin_check() to check user is admin
 # or @bot_admin_check(AdminPerms.value) to check for a specific permission
 # ustat can be used in both cases to allow moderators to use the command
-def user_admin_check(permission: AdminPerms = None, ustat: UserClass = UserClass.ADMIN):  # TODO: noreply var for callbacks
+def user_admin_check(permission: AdminPerms = None, ustat: UserClass = UserClass.ADMIN, noreply: bool = False):
 	def wrapper(func):
 		@wraps(func)
 		def wrapped(update: Update, context: Ctx, *args, **kwargs):
@@ -164,10 +165,30 @@ def user_admin_check(permission: AdminPerms = None, ustat: UserClass = UserClass
 						perm = permission):
 					return func(update, context, *args, **kwargs)
 
-				return message.reply_text(
-						f"You lack the following permission for this command:\n`{permission.value}`!",
-						parse_mode = ParseMode.MARKDOWN
-				)
+				return u_na_errmsg(message, permission, noreply)
+
+		return wrapped
+
+	return wrapper
+
+
+# decorator, can be used as @bot_admin_check() to check user is admin
+# or @bot_admin_check(AdminPerms.value) to check for a specific permission
+# ustat can be used in both cases to allow moderators to use the command
+def user_not_admin_check():
+	def wrapper(func):
+		@wraps(func)
+		def wrapped(update: Update, context: Ctx, *args, **kwargs):
+			message = update.effective_message
+			user = update.effective_user
+
+			if (message.is_automatic_forward
+					or (message.sender_chat and message.sender_chat.type != "channel")
+					or not user):
+				return
+
+			elif not user_is_admin(update, user.id, channels = True):
+				return func(update, context, *args, **kwargs)
 
 		return wrapped
 
@@ -208,7 +229,6 @@ def perm_callback_check(upd: Update, _: Ctx):
 	# update the `Update` and `CallbackContext` attributes by the correct values, so they can be used properly
 	setattr(cb[0][0], "_effective_user", upd.effective_user)
 	setattr(cb[0][0], "_effective_message", cb[2][0])
-	setattr(cb[0][1], "args", cb[2][1])
 
 	return cb[1](cb[0][0], cb[0][1])  # return func(update, context)
 

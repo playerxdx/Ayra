@@ -3,28 +3,43 @@ import html
 from telegram import Update, TelegramError
 from telegram.ext import CallbackContext
 from telegram.ext.filters import Filters
-from tg_bot.modules.helper_funcs.chat_status import bot_admin, bot_can_delete
 
-from tg_bot.modules.helper_funcs.decorators import kigcmd, kigmsg
-from ..modules.helper_funcs.anonymous import UserClass, resolve_user, user_admin, AdminPerms
+from .helper_funcs.chat_status import connection_status
+from .helper_funcs.decorators import kigcmd, kigmsg
+from .helper_funcs.admin_status import (
+    user_admin_check,
+    bot_admin_check,
+    AdminPerms,
+    user_is_admin,
+    u_na_errmsg
+)
 import tg_bot.modules.sql.antilinkedchannel_sql as sql
+from .. import spamcheck
+
+# TODO: Add logging
 
 
 @kigcmd(command="cleanlinked", group=112)
-@bot_can_delete
-@user_admin(UserClass.ADMIN, AdminPerms.CAN_RESTRICT_MEMBERS)
+@spamcheck
+@connection_status
+@bot_admin_check(AdminPerms.CAN_DELETE_MESSAGES)
+@user_admin_check()
+# @loggable
 def set_antilinkedchannel(update: Update, context: CallbackContext):
     message = update.effective_message
     chat = update.effective_chat
     args = context.args
-    u = update.effective_user
-    user = resolve_user(u, message.message_id, chat) #need to add logging
+    user = update.effective_user
     if len(args) > 0:
+        if not user_is_admin(update, user.id, perm = AdminPerms.CAN_CHANGE_INFO):
+            message.reply_text("You don't have enough rights!")
+            return u_na_errmsg(message, AdminPerms.CAN_CHANGE_INFO)
+
         s = args[0].lower()
         if s in ["yes", "on"]:
             if sql.status_pin(chat.id):
                 sql.disable_pin(chat.id)
-                sql.enable_pin(chat.id)
+                sql.enable_linked(chat.id)
                 message.reply_html("Enabled CleanLinked and Disabled anti channel pin in {}".format(html.escape(chat.title)))
             else:
                 sql.enable_linked(chat.id)
@@ -35,6 +50,7 @@ def set_antilinkedchannel(update: Update, context: CallbackContext):
         else:
             message.reply_text("Unrecognized arguments {}".format(s))
         return
+
     message.reply_html(
         "Linked channel deletion is currently {} in {}".format(sql.status_linked(chat.id), html.escape(chat.title)))
 
@@ -48,18 +64,30 @@ def eliminate_linked_channel_msg(update: Update, _: CallbackContext):
     try:
         message.delete()
     except TelegramError:
+        sql.disable_linked(chat.id)
+        message.reply_text(
+            "I can't delete messages here, give me permissions first! Until then, I'll disable cleanlinked."
+        )
         return
 
+
 @kigcmd(command="antichannelpin", group=114)
-@bot_admin
-@user_admin(UserClass.ADMIN, AdminPerms.CAN_RESTRICT_MEMBERS)
+@spamcheck
+@connection_status
+@bot_admin_check(AdminPerms.CAN_DELETE_MESSAGES)
+@user_admin_check()
+# @loggable
 def set_antipinchannel(update: Update, context: CallbackContext):
     message = update.effective_message
     chat = update.effective_chat
     args = context.args
-    u = update.effective_user
-    user = resolve_user(u, message.message_id, chat) #need to add logging
+    user = update.effective_user
+
     if len(args) > 0:
+        if not user_is_admin(update, user.id, perm = AdminPerms.CAN_CHANGE_INFO):
+            message.reply_text("You don't have enough rights!")
+            return u_na_errmsg(message, AdminPerms.CAN_CHANGE_INFO)
+
         s = args[0].lower()
         if s in ["yes", "on"]:
             if sql.status_linked(chat.id):
@@ -75,6 +103,7 @@ def set_antipinchannel(update: Update, context: CallbackContext):
         else:
             message.reply_text("Unrecognized arguments {}".format(s))
         return
+
     message.reply_html(
         "Linked channel message unpin is currently {} in {}".format(sql.status_pin(chat.id), html.escape(chat.title)))
 
@@ -85,7 +114,12 @@ def eliminate_linked_channel_msg(update: Update, _: CallbackContext):
     chat = update.effective_chat
     if not sql.status_pin(chat.id):
         return
+
     try:
         message.unpin()
     except TelegramError:
+        sql.disable_pin(chat.id)
+        message.reply_text(
+            "I can't delete messages here, give me permissions first! Until then, I'll disable cleanlinked."
+        )
         return
