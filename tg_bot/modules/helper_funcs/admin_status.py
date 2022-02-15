@@ -19,12 +19,10 @@ from .admin_status_helpers import (
 	SUDO_USERS,
 	MOD_USERS,
 	AdminPerms,
-	UserClass,
 	anon_reply_markup as arm,
 	anon_reply_text as art,
 	anon_callbacks as a_cb,
 	edit_anon_msg as eam,
-	SuperUsers,
 	user_is_not_admin_errmsg as u_na_errmsg,
 )
 
@@ -133,7 +131,7 @@ def get_mem_from_cache(user_id: int, chat_id: int) -> ChatMember:
 # decorator, can be used as @bot_admin_check() to check user is admin
 # or @bot_admin_check(AdminPerms.value) to check for a specific permission
 # ustat can be used in both cases to allow moderators to use the command
-def user_admin_check(permission: AdminPerms = None, ustat: UserClass = UserClass.ADMIN, noreply: bool = False):
+def user_admin_check(permission: AdminPerms = None, allow_mods: bool = False, noreply: bool = False):
 	def wrapper(func):
 		@wraps(func)
 		def wrapped(update: Update, context: Ctx, *args, **kwargs):
@@ -161,7 +159,7 @@ def user_admin_check(permission: AdminPerms = None, ustat: UserClass = UserClass
 				if user_is_admin(
 						update,
 						user_id,
-						allow_moderators = ustat == UserClass.MOD,  # allow moderators only if ustat is MOD_USERS
+						allow_moderators = allow_mods,  # allow moderators only if ustat is MOD_USERS
 						perm = permission):
 					return func(update, context, *args, **kwargs)
 
@@ -193,11 +191,6 @@ def user_not_admin_check():
 		return wrapped
 
 	return wrapper
-
-
-# TODO
-def user_not_admin(noreply: bool = False):
-	noreply
 
 
 @kigCb(pattern = "AnonCB")
@@ -233,21 +226,22 @@ def perm_callback_check(upd: Update, _: Ctx):
 	return cb[1](cb[0][0], cb[0][1])  # return func(update, context)
 
 
-# decorator, can be used as @restricted_cmd() to restrict the command usage to the bot owner
-# or @restricted_cmd(SuperUsers.value) to allow certain superusers to use the command
-# silent bool is weather to reply that the command can't be used ir just return
-def restricted_cmd(
-		restricted_to: SuperUsers = SuperUsers.Owner,
-		silent: bool = True
-):  # maybe add another bool to delete it
-	def wrapper(func):
-		@wraps(func)
-		def wrapped(update: Update, _: Ctx):
-			if update.effective_message.from_user.id not in restricted_to.value:
-				if not silent:
-					update.effective_message.reply_text(
-							f"This command is restricted to the bot {restricted_to.name}, you can't use it!"
-					)
-				return
-		return wrapped
-	return wrapper
+# # decorator, can be used as @restricted_cmd() to restrict the command usage to the bot owner
+# # or @restricted_cmd(SuperUsers.value) to allow certain superusers to use the command
+# # silent bool is whether to reply that the command can't be used ir just return
+# def restricted_cmd(
+# 		restricted_to: SuperUsers = SuperUsers.Owner,
+# 		silent: bool = True
+# ):  # maybe add another bool to delete it
+# 	def wrapper(func):
+# 		@wraps(func)
+# 		def wrapped(update: Update, ctx: Ctx):
+# 			if update.effective_message.from_user.id not in restricted_to.value:
+# 				if not silent:
+# 					update.effective_message.reply_text(
+# 							f"This command is restricted to the bot {restricted_to.name}, you can't use it!"
+# 					)
+# 				return
+# 			return func(update, ctx)
+# 		return wrapped
+# 	return wrapper
