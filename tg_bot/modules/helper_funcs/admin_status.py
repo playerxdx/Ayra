@@ -11,8 +11,6 @@ from telegram.ext import CallbackContext as Ctx
 
 from tg_bot import dispatcher
 
-# from ..helper_funcs.decorators import kigcallback as kigCb
-
 from .admin_status_helpers import (
 	ADMINS_CACHE as A_CACHE,
 	BOT_ADMIN_CACHE as B_CACHE,
@@ -22,7 +20,6 @@ from .admin_status_helpers import (
 	anon_reply_markup as arm,
 	anon_reply_text as art,
 	anon_callbacks as a_cb,
-	edit_anon_msg as eam,
 	user_is_not_admin_errmsg as u_na_errmsg,
 )
 
@@ -183,58 +180,3 @@ def user_not_admin_check(func):
 		elif not user_is_admin(update, user.id, channels = True):
 			return func(update, context, *args, **kwargs)
 	return wrapped
-
-
-
-# @kigCb(pattern = "AnonCB")
-def perm_callback_check(upd: Update, _: Ctx):
-	callback = upd.callback_query
-	chat_id = int(callback.data.split('/')[1])
-	message_id = int(callback.data.split('/')[2])
-	perm = callback.data.split('/')[3]
-	user_id = callback.from_user.id
-	msg = upd.effective_message
-
-	mem = user_is_admin(upd, user_id, perm = perm if perm != 'None' else None)
-
-	if not mem:  # not admin or doesn't have the required perm
-		eam(msg,
-			"You need to be an admin to perform this action!"
-			if not perm == 'None'
-			else f"You lack the permission: `{perm}`!")
-		return
-
-	try:
-		cb = a_cb.pop((chat_id, message_id), None)
-	except KeyError:
-		eam(msg, "This message is no longer valid.")
-		return
-
-	msg.delete()
-
-	# update the `Update` and `CallbackContext` attributes by the correct values, so they can be used properly
-	setattr(cb[0][0], "_effective_user", upd.effective_user)
-	setattr(cb[0][0], "_effective_message", cb[2][0])
-
-	return cb[1](cb[0][0], cb[0][1])  # return func(update, context)
-
-
-# # decorator, can be used as @restricted_cmd() to restrict the command usage to the bot owner
-# # or @restricted_cmd(SuperUsers.value) to allow certain superusers to use the command
-# # silent bool is whether to reply that the command can't be used ir just return
-# def restricted_cmd(
-# 		restricted_to: SuperUsers = SuperUsers.Owner,
-# 		silent: bool = True
-# ):  # maybe add another bool to delete it
-# 	def wrapper(func):
-# 		@wraps(func)
-# 		def wrapped(update: Update, ctx: Ctx):
-# 			if update.effective_message.from_user.id not in restricted_to.value:
-# 				if not silent:
-# 					update.effective_message.reply_text(
-# 							f"This command is restricted to the bot {restricted_to.name}, you can't use it!"
-# 					)
-# 				return
-# 			return func(update, ctx)
-# 		return wrapped
-# 	return wrapper

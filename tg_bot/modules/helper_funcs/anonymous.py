@@ -1,100 +1,44 @@
-from enum import Enum
-import functools
+# admin status module by Luke (@itsLuuke - t.me/itsLuuke)
+# written for OdinRobot
+# copyright 2022
 
-from telegram import Update, ParseMode
-from telegram.ext import CallbackContext
-from telegram.inline.inlinekeyboardbutton import InlineKeyboardButton
-from telegram.inline.inlinekeyboardmarkup import InlineKeyboardMarkup
+from telegram import Update
+from telegram.ext import CallbackContext as Ctx
 
-from tg_bot import DEV_USERS, MOD_USERS, SUDO_USERS, dispatcher
-from .decorators import kigcallback
+from ..helper_funcs.decorators import kigcallback as kigCb
 
-class AdminPerms(Enum):
-    CAN_RESTRICT_MEMBERS = 'can_restrict_members'
-    CAN_PROMOTE_MEMBERS = 'can_promote_members'
-    CAN_INVITE_USERS ='can_invite_users'
-    CAN_DELETE_MESSAGES ='can_delete_messages'
-    CAN_CHANGE_INFO ='can_change_info'
-    CAN_PIN_MESSAGES = 'can_pin_messages'
-    IS_ANONYMOUS = 'is_anonymous'
-
-class UserClass(Enum):
-    ADMIN = SUDO_USERS + DEV_USERS
-    MOD = MOD_USERS + SUDO_USERS + DEV_USERS
-
-class ChatStatus(Enum):
-    CREATOR = "creator"
-    ADMIN   = "administrator"
-
-anon_callbacks = {}
-anon_users = {}
-anon_callback_messages = {}
-def user_admin(ustat: UserClass, permission: AdminPerms):
-    def wrapper(func):
-        @functools.wraps(func)
-        def awrapper(update: Update, context: CallbackContext, *args, **kwargs):
-            nonlocal permission
-            if update.effective_chat.type == 'private':
-                return func(update, context, *args, **kwargs)
-            message = update.effective_message
-            is_anon = update.effective_message.sender_chat
-
-            if is_anon:
-                callback_id = f'anoncb/{message.chat.id}/{message.message_id}/{permission.value}'
-                anon_callbacks[(message.chat.id, message.message_id)] = ((update, context), func)
-                anon_callback_messages[(message.chat.id, message.message_id)] = (message.reply_text("Seems like you're anonymous, click the button below to prove your identity",
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(text='Prove identity', callback_data=callback_id)]]))).message_id
-                # send message with callback f'anoncb{callback_id}'
-            else:
-                user_id = message.from_user.id 
-                chat_id = message.chat.id
-                mem = context.bot.get_chat_member(chat_id=chat_id, user_id=user_id)
-                if getattr(mem, permission.value) is True or mem.status == "creator" or user_id in ustat.value:
-                    return func(update, context, *args, **kwargs)
-                else:
-                    return message.reply_text(f"You lack the permission: `{permission.name}`!", parse_mode=ParseMode.MARKDOWN)
-
-        return awrapper
-    return wrapper
+from .admin_status_helpers import anon_callbacks as a_cb, edit_anon_msg as eam
+from .admin_status import user_is_admin
 
 
-@kigcallback(pattern="anoncb")
-def anon_callback_handler1(upd: Update, _: CallbackContext):
-    callback = upd.callback_query
-    perm = callback.data.split('/')[3]
-    chat_id = int(callback.data.split('/')[1])
-    message_id = int(callback.data.split('/')[2])
-    try:
-        mem = upd.effective_chat.get_member(user_id=callback.from_user.id)
-    except BaseException as e:
-        callback.answer(f"Error: {e}", show_alert=True)
-        return
-    if mem.status not in [ChatStatus.ADMIN.value, ChatStatus.CREATOR.value]:   
-        callback.answer("You're aren't admin.")
-        dispatcher.bot.delete_message(chat_id, anon_callback_messages.pop((chat_id, message_id), None))
-        dispatcher.bot.send_message(chat_id, f"You lack the permission: `{perm}`!", parse_mode=ParseMode.MARKDOWN)
-    elif getattr(mem, perm) is True or mem.status == "creator" or mem.user.id in SUDO_USERS:
-        cb = anon_callbacks.pop((chat_id, message_id), None)
-        if cb:
-            message_id = anon_callback_messages.pop((chat_id, message_id), None)
-            if message_id is not None:
-                dispatcher.bot.delete_message(chat_id, message_id)
-                anon_users.update({(chat_id, cb[0][0].effective_message.message_id): callback.from_user.id})
-            return cb[1](cb[0][0], cb[0][1])
-    else:
-        callback.answer(f"You lack the permission: {perm}!")
+@kigCb(pattern = "AnonCB")
+def perm_callback_check(upd: Update, _: Ctx):
+	callback = upd.callback_query
+	chat_id = int(callback.data.split('/')[1])
+	message_id = int(callback.data.split('/')[2])
+	perm = callback.data.split('/')[3]
+	user_id = callback.from_user.id
+	msg = upd.effective_message
 
-def resolve_user(user, message_id, chat):
-    if user.id == 1087968824:
-        try:
-            uid = anon_users.pop((chat.id, message_id))
-            user = chat.get_member(uid).user
-        except KeyError:
-            return dispatcher.bot.edit_message_text(chat.id, message_id, "You're now identified as: {}".format(user.first_name))
-        except BaseException as e:
-            return dispatcher.bot.edit_message_text(chat.id, message_id, f"Error: {e}")
+	mem = user_is_admin(upd, user_id, perm = perm if perm != 'None' else None)
 
-    else:
-        user = user
-    return user
+	if not mem:  # not admin or doesn't have the required perm
+		eam(msg,
+			"You need to be an admin to perform this action!"
+			if not perm == 'None'
+			else f"You lack the permission: `{perm}`!")
+		return
 
+	try:
+		cb = a_cb.pop((chat_id, message_id), None)
+	except KeyError:
+		eam(msg, "This message is no longer valid.")
+		return
+
+	msg.delete()
+
+	# update the `Update` and `CallbackContext` attributes by the correct values, so they can be used properly
+	setattr(cb[0][0], "_effective_user", upd.effective_user)
+	setattr(cb[0][0], "_effective_message", cb[2][0])
+
+	return cb[1](cb[0][0], cb[0][1])  # return func(update, context)
