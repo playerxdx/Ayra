@@ -1,24 +1,28 @@
 import html
 
-from tg_bot import ALLOW_EXCL, CustomCommandHandler, dispatcher, spamcheck
-from tg_bot.modules.disable import DisableAbleCommandHandler
-from tg_bot.modules.helper_funcs.chat_status import (
-    bot_can_delete,
+from .. import ALLOW_EXCL, CustomCommandHandler, dispatcher, spamcheck
+from .disable import DisableAbleCommandHandler
+from .helper_funcs.chat_status import (
+
     connection_status,
     dev_plus,
-    user_admin,
+
 )
-from tg_bot.modules.sql import cleaner_sql as sql
+from .sql import cleaner_sql as sql
 from telegram import ParseMode, Update
 from telegram.ext import (
     CallbackContext,
     CommandHandler,
     Filters,
-    MessageHandler,
-)
-from tg_bot.modules.helper_funcs.decorators import kigcmd, kigmsg
 
-from ..modules.helper_funcs.anonymous import user_admin as u_admin, AdminPerms, resolve_user as res_user, UserClass
+)
+from .helper_funcs.decorators import kigcmd, kigmsg
+
+from .helper_funcs.admin_status import (
+    user_admin_check,
+    bot_admin_check,
+    AdminPerms,
+)
 
 CMD_STARTERS = ("/", "!") if ALLOW_EXCL else "/"
 BLUE_TEXT_CLEAN_GROUP = 13
@@ -68,14 +72,13 @@ def clean_blue_text_must_click(update: Update, context: CallbackContext):
 @kigcmd(command='cleanbluetext', pass_args=True)
 @spamcheck
 @connection_status
-@bot_can_delete
-@u_admin(UserClass.ADMIN, AdminPerms.CAN_CHANGE_INFO)
+@bot_admin_check(AdminPerms.CAN_DELETE_MESSAGES)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO)
 def set_blue_text_must_click(update: Update, context: CallbackContext):
     chat = update.effective_chat
     message = update.effective_message
     bot, args = context.bot, context.args
-    u = update.effective_user
-    user = res_user(u, message.message_id, chat)
+    user = update.effective_user
     if len(args) >= 1:
         val = args[0].lower()
         if val in ("off", "no"):
@@ -105,13 +108,12 @@ def set_blue_text_must_click(update: Update, context: CallbackContext):
 
 @kigcmd(command='ignorecleanbluetext', pass_args=True)
 @spamcheck
-@u_admin(UserClass.ADMIN, AdminPerms.CAN_CHANGE_INFO)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO)
 def add_bluetext_ignore(update: Update, context: CallbackContext):
     message = update.effective_message
     chat = update.effective_chat
-    u = update.effective_user
+    user = update.effective_user
     args = context.args
-    user = res_user(u, message.message_id, chat)
     if len(args) >= 1:
         val = args[0].lower()
         added = sql.chat_ignore_command(chat.id, val)
@@ -129,13 +131,12 @@ def add_bluetext_ignore(update: Update, context: CallbackContext):
 
 @kigcmd(command='unignorecleanbluetext', pass_args=True)
 @spamcheck
-@u_admin(UserClass.ADMIN, AdminPerms.CAN_CHANGE_INFO)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO)
 def remove_bluetext_ignore(update: Update, context: CallbackContext):
     message = update.effective_message
-    u = update.effective_user
     chat = update.effective_chat
     args = context.args
-    user = res_user(u, message.message_id, chat)
+
     if len(args) >= 1:
         val = args[0].lower()
         removed = sql.chat_unignore_command(chat.id, val)
@@ -223,7 +224,7 @@ def bluetext_ignore_list(update: Update, context: CallbackContext):
     message.reply_text(text, parse_mode=ParseMode.HTML)
     return
 
-from tg_bot.modules.language import gs
+from .language import gs
 
 def get_help(chat):
     return gs(chat, "cleaner_help")

@@ -1,37 +1,45 @@
 import os
-import shutil
-import datetime
 import subprocess
-from time import sleep
+
+from telegram.ext.callbackcontext import CallbackContext
+from telegram.ext.filters import Filters
+
 
 from telegram.update import Update
-from telegram.ext.filters import Filters
-from telegram.ext.callbackcontext import CallbackContext
 
-from tg_bot import DB_URI, OWNER_ID, SYS_ADMIN, dispatcher, log, BACKUP_PASS
+import datetime
+from .. import DB_URI, OWNER_ID, SYS_ADMIN, dispatcher, log, BACKUP_PASS
 
-from tg_bot.modules.helper_funcs.decorators import kigcmd
+from .helper_funcs.decorators import kigcmd
+import shutil
+from time import sleep
+
 
 
 
 @kigcmd(command="backupdb", filters=Filters.user(SYS_ADMIN) | Filters.user(OWNER_ID))
-def backup_now(_: Update, ctx: CallbackContext):
+def backup_now(update: Update, context: CallbackContext):
     cronjob.run(dispatcher=dispatcher)
 
+@kigcmd(command="jobs", filters=Filters.user(SYS_ADMIN) | Filters.user(OWNER_ID))
+def get_jobs(update: Update, context: CallbackContext):
+    a = cronjob.job_queue.jobs().count(j)
+    print(a)
+    update.effective_message.reply_text(a)
 
 @kigcmd(command="stopjobs", filters=Filters.user(SYS_ADMIN) | Filters.user(OWNER_ID))
-def stop_jobs(update: Update, _: CallbackContext):
+def stop_jobs(update: Update, context: CallbackContext):
     print(j.stop())
     update.effective_message.reply_text("Scheduler has been shut down")
 
 @kigcmd(command="startjobs", filters=Filters.user(SYS_ADMIN) | Filters.user(OWNER_ID))
-def start_jobs(update: Update, _: CallbackContext):
+def start_jobs(update: Update, context: CallbackContext):
     print(j.start())
     update.effective_message.reply_text("Scheduler started")
 
 zip_pass = BACKUP_PASS
 
-def backup_db(_: CallbackContext):
+def backup_db(ctx: CallbackContext):
     bot = dispatcher.bot
     tmpmsg = "Performing backup, Please wait..."
     tmp = bot.send_message(OWNER_ID, tmpmsg)
@@ -52,17 +60,20 @@ def backup_db(_: CallbackContext):
         tmp.delete()
         return 
     else:
-        log.info("copying config, and logs to backup location")
+        log.info("copying config, logs, and updates to backup location")
         if os.path.exists('logs.txt'):
             print("logs copied")
             shutil.copyfile('logs.txt', '{}/logs.txt'.format(bkplocation))
+        if os.path.exists('updates.txt'):
+            print("updates copied")
+            shutil.copyfile('updates.txt', '{}/updates.txt'.format(bkplocation))
         if os.path.exists('config.ini'):
             print("config copied")
             shutil.copyfile('config.ini', '{}/config.ini'.format(bkplocation))
         log.info("zipping the backup")
         zipcmd = "zip --password '{}' {} {}/*".format(zip_pass, bkplocation, bkplocation)
         zipinfo = "zipping db backup"
-        log.info("zip initiated")
+        log.info("zip intiated")
         term(zipcmd, zipinfo)
         log.info("zip done")
         sleep(1)
@@ -82,7 +93,7 @@ def backup_db(_: CallbackContext):
 
 
 @kigcmd(command="purgebackups", filters=Filters.user(SYS_ADMIN) | Filters.user(OWNER_ID))
-def del_bkp_fldr(update: Update, _: CallbackContext):
+def stop_jobs(update: Update, context: CallbackContext):
     shutil.rmtree("backups")
     update.effective_message.reply_text("'backups' directory has been purged!")
 
@@ -102,8 +113,7 @@ def term(cmd, info):
 
 
 from tg_bot import updater as u
-# run the backup daily at 1:00
-twhen = datetime.datetime.strptime('01:00', '%H:%M').time()
 j = u.job_queue
+twhen = datetime.datetime.strptime('01:00', '%H:%M').time()
 cronjob = j.run_daily(callback=backup_db, name="database backups", time=twhen)
 

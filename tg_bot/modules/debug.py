@@ -1,18 +1,18 @@
 import datetime
 import os
-from telethon import events
-from telegram import Update
-from telegram.ext import CallbackContext, CommandHandler
 
-from tg_bot import API_HASH, APP_ID, BACKUP_PASS, CASH_API_KEY, CF_API_KEY, DB_URI, GLOBALANNOUNCE, IS_DEBUG, LASTFM_API_KEY, TIME_API_KEY, TOKEN, telethn, dispatcher, ANTISPAM_TOGGLE, spamwatch_api
-from tg_bot.modules.helper_funcs.chat_status import dev_plus
-from tg_bot.modules.helper_funcs.decorators import kigcmd, register
+from telegram import Update
+from telegram.ext import CallbackContext
+
+from .. import API_HASH, APP_ID, BACKUP_PASS, CASH_API_KEY, CF_API_KEY, DB_URI, LASTFM_API_KEY, TIME_API_KEY, TOKEN, dispatcher, spamwatch_api
+from .helper_funcs.chat_status import dev_plus
+from .helper_funcs.decorators import kigcmd, register
 
 DEBUG_MODE = False
 
 @kigcmd(command='debug')
 @dev_plus
-def debug(update: Update, context: CallbackContext):
+def debug(update: Update, _: CallbackContext):
     global DEBUG_MODE
     args = update.effective_message.text.split(None, 1)
     message = update.effective_message
@@ -120,7 +120,7 @@ def logs(update: Update, context: CallbackContext):
     logstxt = open("logs.txt", "rt")
     with open(logsname, "wt") as logsout:
         for line in logstxt:
-        	logsout.write(line.replace(str(DB_URI), '$DATABASE').replace(str(TOKEN), '$TOKEN').replace(str(APP_ID), '$APP_ID').replace(str(API_HASH), '$API_HASH').replace(str(CASH_API_KEY), '$CASH_API_KEY').replace(str(TIME_API_KEY), '$TIME_API_KEY').replace(str(LASTFM_API_KEY), '$LASTFM_API_KEY').replace(str(CF_API_KEY), '$CF_API_KEY').replace(str(spamwatch_api), '$spamwatch_api').replace(str(BACKUP_PASS), '$BACKUP_PASS'))
+            logsout.write(line.replace(str(DB_URI), '$DATABASE').replace(str(TOKEN), '$TOKEN').replace(str(APP_ID), '$APP_ID').replace(str(API_HASH), '$API_HASH').replace(str(CASH_API_KEY), '$CASH_API_KEY').replace(str(TIME_API_KEY), '$TIME_API_KEY').replace(str(LASTFM_API_KEY), '$LASTFM_API_KEY').replace(str(CF_API_KEY), '$CF_API_KEY').replace(str(spamwatch_api), '$spamwatch_api').replace(str(BACKUP_PASS), '$BACKUP_PASS'))
         logstxt.close()
 
     with open(logsname, "rb") as f:
@@ -141,7 +141,7 @@ def updates_log(update: Update, context: CallbackContext):
     updatestxt = open("updates.txt", "rt")
     with open(updatesname, "wt") as updatesout:
         for line in updatestxt:
-        	updatesout.write(line.replace(str(DB_URI), '$DATABASE').replace(str(TOKEN), '$TOKEN').replace(str(APP_ID), '$APP_ID').replace(str(API_HASH), '$API_HASH').replace(str(CASH_API_KEY), '$CASH_API_KEY').replace(str(TIME_API_KEY), '$TIME_API_KEY').replace(str(LASTFM_API_KEY), '$LASTFM_API_KEY').replace(str(CF_API_KEY), '$CF_API_KEY').replace(str(spamwatch_api), '$spamwatch_api').replace(str(BACKUP_PASS), '$BACKUP_PASS'))
+            updatesout.write(line.replace(str(DB_URI), '$DATABASE').replace(str(TOKEN), '$TOKEN').replace(str(APP_ID), '$APP_ID').replace(str(API_HASH), '$API_HASH').replace(str(CASH_API_KEY), '$CASH_API_KEY').replace(str(TIME_API_KEY), '$TIME_API_KEY').replace(str(LASTFM_API_KEY), '$LASTFM_API_KEY').replace(str(CF_API_KEY), '$CF_API_KEY').replace(str(spamwatch_api), '$spamwatch_api').replace(str(BACKUP_PASS), '$BACKUP_PASS'))
         updatestxt.close()
 
     with open(updatesname, "rb") as f:

@@ -36,7 +36,7 @@ from tg_bot import (
 # needed to dynamically load modules
 # NOTE: Module order is not guaranteed, specify that in the config file!
 from tg_bot.modules import ALL_MODULES
-from tg_bot.modules.helper_funcs.chat_status import is_user_admin
+ 
 from tg_bot.modules.helper_funcs.misc import paginate_modules
 from tg_bot.modules.helper_funcs.decorators import kigcmd, kigcallback, kigmsg
 from tg_bot.modules.language import gs
@@ -183,7 +183,7 @@ def start(update: Update, context: CallbackContext):  # sourcery no-metrics
                 match = re.match("stngs_(.*)", args[0].lower())
                 chat = dispatcher.bot.getChat(match.group(1))
 
-                if is_user_admin(update, update.effective_user.id):
+                if user_is_admin(update, update.effective_user.id):
                     send_settings(match.group(1), update.effective_user.id, False)
                 else:
                     send_settings(match.group(1), update.effective_user.id, True)
@@ -606,7 +606,7 @@ def get_settings(update: Update, context: CallbackContext):
     if chat.type == chat.PRIVATE:
         send_settings(chat.id, user.id, True)
 
-    elif is_user_admin(update, user.id):
+    elif user_is_admin(update, user.id):
         text = "Click here to get this chat's settings, as well as yours."
         msg.reply_text(
             text,

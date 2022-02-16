@@ -1,23 +1,25 @@
 # from AstrakoBot
-from telegram import Update, Bot, ParseMode
-from telegram.ext import CommandHandler, CallbackContext, run_async
+from telegram import Update, ParseMode
+from telegram.ext import CallbackContext
 
 import tg_bot.modules.sql.clear_cmd_sql as sql
-from tg_bot import dispatcher, spamcheck
-from tg_bot.modules.helper_funcs.chat_status import connection_status
-from tg_bot.modules.helper_funcs.decorators import kigcmd
+from .. import spamcheck
+from .helper_funcs.chat_status import connection_status
+from .helper_funcs.decorators import kigcmd
 
-from ..modules.helper_funcs.anonymous import user_admin as u_admin, AdminPerms, resolve_user as res_user, UserClass
+from .helper_funcs.admin_status import (
+    user_admin_check,
+    AdminPerms,
+)
 
 @kigcmd(command='clearcmd')
 @spamcheck
 @connection_status
-@u_admin(UserClass.ADMIN, AdminPerms.CAN_CHANGE_INFO)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO)
 def clearcmd(update: Update, context: CallbackContext):
     chat = update.effective_chat
     message = update.effective_message
     args = context.args
-    user = res_user(update.effective_user, message.message_id, chat)
     msg = ""
 
     commands = [

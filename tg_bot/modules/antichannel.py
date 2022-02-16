@@ -3,7 +3,7 @@ from typing import Optional
 from telegram.ext.filters import Filters
 from telegram.utils.helpers import mention_html
 
-from tg_bot.modules.helper_funcs.decorators import kigcmd, kigmsg
+from .helper_funcs.decorators import kigcmd, kigmsg
 from telegram import TelegramError, Update
 from telegram.ext import CallbackContext
 

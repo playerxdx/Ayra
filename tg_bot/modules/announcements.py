@@ -3,18 +3,19 @@ from typing import Optional
 
 from telegram.chat import Chat
 from telegram.chatmember import ChatMember
-from tg_bot.modules.helper_funcs.chat_status import ADMIN_CACHE
 from .helper_funcs.admin_status import A_CACHE, B_CACHE
 
-from tg_bot.modules.log_channel import loggable
+from .log_channel import loggable
 
 from telegram.chatmemberupdated import ChatMemberUpdated
 from telegram import Update
 
 from telegram.ext import CallbackContext
-from telegram.chatmemberupdated import ChatMemberUpdated
+
+from tg_bot import OWNER_ID, dispatcher
+from .sql import log_channel_sql as logsql
 from telegram.ext.chatmemberhandler import ChatMemberHandler
-from tg_bot.modules.helper_funcs.chat_status import ADMIN_CACHE
+
 import tg_bot.modules.sql.log_channel_sql as logsql
 from tg_bot import OWNER_ID, dispatcher
 from tg_bot.modules.log_channel import loggable
@@ -402,13 +403,17 @@ def admincacheupdates(update: Update, _: CallbackContext):
         or oldstat != "administrator"
         and newstat == "administrator"
     ):
-        try:
-            ADMIN_CACHE.pop(update.effective_chat.id)
-            A_CACHE.pop(update.effective_chat.id)
-            B_CACHE.pop(update.effective_chat.id)
-        except KeyError:
-            pass
+
+        A_CACHE[update.effective_chat.id] = update.effective_chat.get_administrators()
+        # B_CACHE[update.effective_chat.id] = update.effective_chat.get_member(dispatcher.bot.id)
+
+
+def botstatchanged(update: Update, _: CallbackContext):
+    if update.effective_chat.type != "private":
+        B_CACHE[update.effective_chat.id] = update.effective_chat.get_member(dispatcher.bot.id)
+
 
 dispatcher.add_handler(ChatMemberHandler(chatmemberupdates, ChatMemberHandler.CHAT_MEMBER, run_async=True), group=-21)
 dispatcher.add_handler(ChatMemberHandler(mychatmemberupdates, ChatMemberHandler.MY_CHAT_MEMBER, run_async=True), group=-20)
-dispatcher.add_handler(ChatMemberHandler(admincacheupdates, ChatMemberHandler.ANY_CHAT_MEMBER, run_async=True))
+dispatcher.add_handler(ChatMemberHandler(botstatchanged, ChatMemberHandler.MY_CHAT_MEMBER, run_async=True), group=-25)
+dispatcher.add_handler(ChatMemberHandler(admincacheupdates, ChatMemberHandler.CHAT_MEMBER, run_async=True), group=-22)

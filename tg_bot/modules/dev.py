@@ -5,24 +5,22 @@ import subprocess
 import sys
 from time import sleep
 from telegram.error import Unauthorized
-from telegram.ext.callbackqueryhandler import CallbackQueryHandler
-from tg_bot import DEV_USERS, OWNER_ID, dispatcher, telethn, SYS_ADMIN, ALLOW_CHATS
-from tg_bot.modules.helper_funcs.chat_status import dev_plus
+from .. import DEV_USERS, OWNER_ID, telethn, SYS_ADMIN
+from .helper_funcs.chat_status import dev_plus
 from telegram import TelegramError, Update, ParseMode, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import CallbackContext, CommandHandler, Filters
+from telegram.ext import CallbackContext
 import asyncio
 from statistics import mean
 from time import monotonic as time
 from telethon import events
-from tg_bot.modules.helper_funcs.decorators import kigcmd, register, kigcallback
+from .helper_funcs.decorators import kigcmd, register, kigcallback
 
 @kigcmd(command='leave')
 @dev_plus
 def leave(update: Update, context: CallbackContext):
     bot = context.bot
-    args = context.args
-    this = update.effective_chat.linked_chat_id
-    if args:
+
+    if args := context.args:
         chat_id = str(args[0])
         leave_msg = " ".join(args[1:])
         try:

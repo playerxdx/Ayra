@@ -20,20 +20,11 @@ from tg_bot import (
     dispatcher,
 )
 
-from tg_bot.modules.helper_funcs.chat_status import (
-    bot_admin,
-    can_restrict,
-    connection_status,
-    is_user_admin,
-    can_delete,
-    is_user_ban_protected,
-    is_user_in_chat,
-    u_can_delete,
-)
-from tg_bot.modules.helper_funcs.extraction import extract_user_and_text
-from tg_bot.modules.helper_funcs.string_handling import extract_time
-from tg_bot.modules.log_channel import loggable, gloggable
-from tg_bot.modules.helper_funcs.decorators import kigcmd
+from .helper_funcs.chat_status import connection_status
+from .helper_funcs.extraction import extract_user_and_text
+from .helper_funcs.string_handling import extract_time
+from .log_channel import loggable, gloggable
+from .helper_funcs.decorators import kigcmd
 
 def cannot_ban(user_id, message):
     
@@ -54,7 +45,13 @@ def cannot_ban(user_id, message):
 
 ban_myself = "Oh yeah, ban myself, noob!"
 
-from ..modules.helper_funcs.anonymous import user_admin as u_admin, AdminPerms, resolve_user as res_user, UserClass
+from .helper_funcs.admin_status import (
+    user_admin_check,
+    bot_admin_check,
+    AdminPerms,
+    bot_is_admin,
+    user_is_admin,
+)
 
 @kigcmd(command=('dban'), pass_args=True)
 @kigcmd(command=('dsban'), pass_args=True)
@@ -62,16 +59,15 @@ from ..modules.helper_funcs.anonymous import user_admin as u_admin, AdminPerms, 
 @kigcmd(command=('ban'), pass_args=True)
 @spamcheck
 @connection_status
-@bot_admin
-@can_restrict
-@u_admin(UserClass.MOD, AdminPerms.CAN_RESTRICT_MEMBERS)
+@bot_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS)
+@user_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS, allow_mods = True)
 @loggable
 def ban(update: Update, context: CallbackContext):  # sourcery no-metrics
     chat = update.effective_chat  # type: Optional[Chat]
-    u = update.effective_user  # type: Optional[User]
+    user = update.effective_user  # type: Optional[User]
     message = update.effective_message  # type: Optional[Message]
     args = context.args
-    user = res_user(u, message.message_id, chat)
+
     # user = u
     log_message = ""
     reason = ""
@@ -82,27 +78,27 @@ def ban(update: Update, context: CallbackContext):  # sourcery no-metrics
 
         if message.text.startswith(('/s','!s','>s')):
             silent = True
-            if not can_delete(chat, context.bot.id):
-                message.reply_text("I don't have permission to delete messages here!")
+            if not bot_is_admin(chat, AdminPerms.CAN_DELETE_MESSAGES):
+                message.reply_text("I dont't have permission to delete messages here!")
                 return ""
         else:
             silent = False
         if message.text.startswith(('/d','!d','>d')):
             delban = True
-            if not can_delete(chat, context.bot.id):
+            if not bot_is_admin(chat, AdminPerms.CAN_DELETE_MESSAGES):
                 message.reply_text("I dont't have permission to delete messages here!")
                 return ""
-            if not u_can_delete(chat, user.id):
+            if not user_is_admin(chat, user.id, perm=AdminPerms.CAN_DELETE_MESSAGES):
                 message.reply_text("You dont't have permission to delete messages here!")
                 return ""
         else:
             delban = False
         if message.text.startswith(('/ds','!ds','>ds')):
             delsilent = True
-            if not can_delete(chat, context.bot.id):
+            if not bot_is_admin(chat, AdminPerms.CAN_DELETE_MESSAGES):
                 message.reply_text("I dont't have permission to delete messages here!")
                 return ""
-            if not u_can_delete(chat, user.id):
+            if not user_is_admin(chat, user.id, perm=AdminPerms.CAN_DELETE_MESSAGES):
                 message.reply_text("You dont't have permission to delete messages here!")
                 return ""
 
@@ -154,33 +150,33 @@ def ban(update: Update, context: CallbackContext):  # sourcery no-metrics
         message.reply_text(ban_myself)
         return log_message
 
-    if is_user_ban_protected(update, user_id, member) and user.id not in DEV_USERS:
+    if user_is_admin(update, user_id) and user.id not in DEV_USERS:
         cannot_ban(user_id, message)
         return log_message
 
     if message.text.startswith(('/s','!s','>s')):
         silent = True
-        if not can_delete(chat, context.bot.id):
+        if not bot_is_admin(chat, AdminPerms.CAN_DELETE_MESSAGES):
             message.reply_text("I dont't have permission to delete messages here!")
             return ""
     else:
         silent = False
     if message.text.startswith(('/d','!d','>d')):
         delban = True
-        if not can_delete(chat, context.bot.id):
+        if not bot_is_admin(chat, AdminPerms.CAN_DELETE_MESSAGES):
             message.reply_text("I dont't have permission to delete messages here!")
             return ""
-        if not u_can_delete(chat, user.id):
+        if not user_is_admin(chat, user.id, perm=AdminPerms.CAN_DELETE_MESSAGES):
             message.reply_text("You dont't have permission to delete messages here!")
             return ""
     else:
         delban = False
     if message.text.startswith(('/ds','!ds','>ds')):
         delsilent = True
-        if not can_delete(chat, context.bot.id):
+        if not bot_is_admin(chat, AdminPerms.CAN_DELETE_MESSAGES):
             message.reply_text("I dont't have permission to delete messages here!")
             return ""
-        if not u_can_delete(chat, user.id):
+        if not user_is_admin(chat, user.id, perm=AdminPerms.CAN_DELETE_MESSAGES):
             message.reply_text("You dont't have permission to delete messages here!")
             return ""
     else:
@@ -245,18 +241,17 @@ def ban(update: Update, context: CallbackContext):  # sourcery no-metrics
 @kigcmd(command='tban', pass_args=True)
 @connection_status
 @spamcheck
-@bot_admin
-@can_restrict
-@u_admin(UserClass.MOD, AdminPerms.CAN_RESTRICT_MEMBERS)
+@bot_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS)
+@user_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS, allow_mods = True)
 @loggable
 def temp_ban(update: Update, context: CallbackContext) -> str:
     chat = update.effective_chat
-    u = update.effective_user
+    user = update.effective_user
     message = update.effective_message
     log_message = ""
     reason = ""
     bot, args = context.bot, context.args
-    user = res_user(u, message.message_id, chat)
+    
 
     user_id, reason = extract_user_and_text(message, args)
 
@@ -275,7 +270,7 @@ def temp_ban(update: Update, context: CallbackContext) -> str:
         message.reply_text(ban_myself)
         return log_message
 
-    if is_user_ban_protected(update, user_id, member) and user not in DEV_USERS:
+    if user_is_admin(update, user_id) and user not in DEV_USERS:
         cannot_ban(user_id, message)
         return log_message
 
@@ -346,17 +341,16 @@ def temp_ban(update: Update, context: CallbackContext) -> str:
 @kigcmd(command=['kick', 'punch'], pass_args=True)
 @spamcheck
 @connection_status
-@bot_admin
-@can_restrict
-@u_admin(UserClass.MOD, AdminPerms.CAN_RESTRICT_MEMBERS)
+@bot_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS)
+@user_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS, allow_mods = True)
 @loggable
 def kick(update: Update, context: CallbackContext) -> str:
     chat = update.effective_chat
-    u = update.effective_user
+    user = update.effective_user
     message = update.effective_message
     log_message = ""
     bot, args = context.bot, context.args
-    user = res_user(u, message.message_id, chat)
+    
     user_id, reason = extract_user_and_text(message, args)
 
     if not user_id:
@@ -374,7 +368,7 @@ def kick(update: Update, context: CallbackContext) -> str:
         message.reply_text("Yeahhh I'm not gonna do that.")
         return log_message
 
-    if is_user_ban_protected(update, user_id, member) and user not in DEV_USERS:
+    if user_is_admin(update, user_id) and user not in DEV_USERS:
         cannot_ban(user_id, message)
         return log_message
 
@@ -416,17 +410,16 @@ def kick(update: Update, context: CallbackContext) -> str:
 
 
 @kigcmd(command='kickme', pass_args=True, filters=Filters.chat_type.groups)
-@bot_admin
-@can_restrict
+@bot_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS)
 @loggable
 @spamcheck
-def kickme(update: Update, context: CallbackContext) -> str:
+def kickme(update: Update, _: CallbackContext) -> Optional[str]:
     user_id = update.effective_message.from_user.id
     user = update.effective_message.from_user
     chat = update.effective_chat
-    if is_user_admin(update, user_id):
+    if user_is_admin(update, user_id):
         update.effective_message.reply_text("Haha you're stuck with us here.")
-        return
+        return ''
 
     res = update.effective_chat.unban_member(user_id)  # unban on current user = kick
     if res:
@@ -448,17 +441,16 @@ def kickme(update: Update, context: CallbackContext) -> str:
 @kigcmd(command='unban', pass_args=True)
 @connection_status
 @spamcheck
-@bot_admin
-@can_restrict
-@u_admin(UserClass.MOD, AdminPerms.CAN_RESTRICT_MEMBERS)
+@bot_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS)
+@user_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS, allow_mods = True)
 @loggable
 def unban(update: Update, context: CallbackContext) -> Optional[str]:
     message = update.effective_message
-    u = update.effective_user
+    user = update.effective_user
     chat = update.effective_chat
     log_message = ""
     bot, args = context.bot, context.args
-    user = res_user(u, message.message_id, chat)
+    
 
     if message.reply_to_message and message.reply_to_message.sender_chat:
         r = bot.unban_chat_sender_chat(chat_id=chat.id, sender_chat_id=message.reply_to_message.sender_chat.id)
@@ -497,7 +489,7 @@ def unban(update: Update, context: CallbackContext) -> Optional[str]:
         message.reply_text("How would I unban myself if I wasn't here...?")
         return log_message
 
-    if is_user_in_chat(chat, user_id):
+    if member.status not in ("left", "kicked"):
         message.reply_text("Isn't this person already here??")
         return log_message
 
@@ -539,8 +531,7 @@ WHITELISTED_USERS = [OWNER_ID, SYS_ADMIN] + DEV_USERS + SUDO_USERS + WHITELIST_U
 
 @kigcmd(command='selfunban', pass_args=True)
 @connection_status
-@bot_admin
-@can_restrict
+@bot_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS)
 @gloggable
 def selfunban(update: Update, context: CallbackContext) -> Optional[str]:
     message = update.effective_message
@@ -566,7 +557,7 @@ def selfunban(update: Update, context: CallbackContext) -> Optional[str]:
         else:
             raise
 
-    if is_user_in_chat(chat, user.id):
+    if member.status not in ("left", "kicked"):
         message.reply_text("Aren't you already in the chat??")
         return
 
@@ -582,7 +573,7 @@ def selfunban(update: Update, context: CallbackContext) -> Optional[str]:
     return log
 
 
-from tg_bot.modules.language import gs
+from .language import gs
 
 
 def get_help(chat):

@@ -2,7 +2,7 @@ import requests
 from tg_bot import CASH_API_KEY, spamcheck
 from telegram import Update, ParseMode
 from telegram.ext import CallbackContext
-from tg_bot.modules.helper_funcs.decorators import kigcmd
+from .helper_funcs.decorators import kigcmd
 
 
 cash_help_str = \

@@ -11,19 +11,21 @@ from telethon.tl.types import ChannelParticipantCreator
 from tg_bot import telethn
 
 from tg_bot import spamcheck
-from tg_bot.modules.helper_funcs.chat_status import connection_status
+from .helper_funcs.chat_status import connection_status
 
-from tg_bot.modules.helper_funcs.extraction import extract_user, extract_user_and_text
-from tg_bot.modules.log_channel import loggable
-from tg_bot.modules.language import gs
-from tg_bot.modules.helper_funcs.decorators import kigcmd, register
+from .helper_funcs.extraction import extract_user, extract_user_and_text
+from .log_channel import loggable
+from .language import gs
+from .helper_funcs.decorators import kigcmd, register
 
 from .helper_funcs.admin_status import (
     user_admin_check,
     bot_admin_check,
     AdminPerms,
-    UserClass,
     get_bot_member,
+    bot_is_admin,
+    user_is_admin,
+    user_not_admin_check,
 )
 
 from typing import Optional
@@ -33,7 +35,7 @@ from typing import Optional
 @spamcheck
 @connection_status
 @bot_admin_check(AdminPerms.CAN_PROMOTE_MEMBERS)
-@user_admin_check(AdminPerms.CAN_PROMOTE_MEMBERS, UserClass.MOD)
+@user_admin_check(AdminPerms.CAN_PROMOTE_MEMBERS, allow_mods = True)
 @loggable
 def fullpromote(update: Update, context: CallbackContext) -> Optional[str]:
     bot = context.bot
@@ -113,7 +115,7 @@ def fullpromote(update: Update, context: CallbackContext) -> Optional[str]:
 @spamcheck
 @connection_status
 @bot_admin_check(AdminPerms.CAN_PROMOTE_MEMBERS)
-@user_admin_check(AdminPerms.CAN_PROMOTE_MEMBERS, UserClass.MOD)
+@user_admin_check(AdminPerms.CAN_PROMOTE_MEMBERS, allow_mods = True)
 @loggable
 def promote(update: Update, context: CallbackContext) -> Optional[str]:
     bot = context.bot
@@ -193,7 +195,7 @@ def promote(update: Update, context: CallbackContext) -> Optional[str]:
 @spamcheck
 @connection_status
 @bot_admin_check(AdminPerms.CAN_PROMOTE_MEMBERS)
-@user_admin_check(AdminPerms.CAN_PROMOTE_MEMBERS, UserClass.MOD)
+@user_admin_check(AdminPerms.CAN_PROMOTE_MEMBERS, allow_mods = True)
 @loggable
 def demote(update: Update, context: CallbackContext) -> Optional[str]:
     bot = context.bot
@@ -271,7 +273,7 @@ def demote(update: Update, context: CallbackContext) -> Optional[str]:
 @spamcheck
 @connection_status
 @bot_admin_check(AdminPerms.CAN_PROMOTE_MEMBERS)
-@user_admin_check(AdminPerms.CAN_PROMOTE_MEMBERS, UserClass.MOD)
+@user_admin_check(AdminPerms.CAN_PROMOTE_MEMBERS, allow_mods = True)
 @loggable
 def set_title(update: Update, context: CallbackContext) -> Optional[str]:
     bot = context.bot
@@ -355,7 +357,7 @@ def set_title(update: Update, context: CallbackContext) -> Optional[str]:
 @kigcmd(command=["invitelink", "link"], can_disable=False)
 @spamcheck
 @bot_admin_check(AdminPerms.CAN_INVITE_USERS)
-@user_admin_check(AdminPerms.CAN_INVITE_USERS, UserClass.MOD)
+@user_admin_check(AdminPerms.CAN_INVITE_USERS, allow_mods = True)
 @loggable
 def invite(update: Update, context: CallbackContext) -> Optional[str]:
     bot = context.bot

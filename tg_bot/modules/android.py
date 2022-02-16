@@ -13,10 +13,10 @@ from ujson import loads
 from yaml import load, Loader
 
 from tg_bot import dispatcher, spamcheck
-from tg_bot.modules.sql.clear_cmd_sql import get_clearcmd
-from tg_bot.modules.github import getphh
-from tg_bot.modules.helper_funcs.misc import delete
-from tg_bot.modules.helper_funcs.decorators import kigcmd
+from .sql.clear_cmd_sql import get_clearcmd
+from .github import getphh
+from .helper_funcs.misc import delete
+from .helper_funcs.decorators import kigcmd
 
 @kigcmd(command=['magisk', 'su', 'root'], run_async=True, can_disable=True)
 @spamcheck
@@ -336,7 +336,28 @@ __help__ = """
 • `/getfw <model> <csc>` - Samsung only - gets firmware download links from samfrew, sammobile and sfirmwares for the given device
 """
 
-from tg_bot.modules.language import gs
+# MAGISK_HANDLER = CommandHandler(["magisk", "root", "su"], magisk, run_async=True)
+# ORANGEFOX_HANDLER = CommandHandler("orangefox", orangefox, run_async=True)
+# TWRP_HANDLER = CommandHandler("twrp", twrp, run_async=True)
+# GETFW_HANDLER = CommandHandler("getfw", getfw, run_async=True)
+# CHECKFW_HANDLER = CommandHandler("checkfw", checkfw, run_async=True)
+# PHH_HANDLER = CommandHandler("phh", phh, run_async=True)
+# MIUI_HANDLER = CommandHandler("miui", miui, run_async=True)
+
+
+# dispatcher.add_handler(MAGISK_HANDLER)
+# dispatcher.add_handler(ORANGEFOX_HANDLER)
+# dispatcher.add_handler(TWRP_HANDLER)
+# dispatcher.add_handler(GETFW_HANDLER)
+# dispatcher.add_handler(CHECKFW_HANDLER)
+# dispatcher.add_handler(PHH_HANDLER)
+# dispatcher.add_handler(MIUI_HANDLER)
+
+
+# __command_list__ = ["magisk", "root", "su", "orangefox", "twrp", "checkfw", "getfw", "phh", "miui"]
+# __handlers__ = [MAGISK_HANDLER, ORANGEFOX_HANDLER, TWRP_HANDLER, GETFW_HANDLER, CHECKFW_HANDLER, PHH_HANDLER, MIUI_HANDLER]
+
+from .language import gs
 
 def get_help(chat):
     return gs(chat, "android_help")

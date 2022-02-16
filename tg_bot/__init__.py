@@ -143,7 +143,7 @@ LASTFM_API_KEY = KInit.LASTFM_API_KEY
 WEATHER_API = KInit.WEATHER_API
 CF_API_KEY = KInit.CF_API_KEY
 ALLOW_CHATS = KInit.ALLOW_CHATS
-SPB_MODE = kigconfig.getboolean('SPB_MODE', False)
+# SPB_MODE = kigconfig.getboolean('SPB_MODE', False)
 SUPPORT_GROUP = KInit.SUPPORT_GROUP
 IS_DEBUG = KInit.IS_DEBUG
 GROUP_BLACKLIST = KInit.GROUP_BLACKLIST
@@ -233,7 +233,7 @@ def spamcheck(func):
             if IS_DEBUG:
                 print("^ This user is a spammer!")
             return False
-        elif int(chat.id) in GROUP_BLACKLIST:
+        elif str(chat.id) in GROUP_BLACKLIST:
             dispatcher.bot.sendMessage(chat.id, "This group is blacklisted, i'm outa here...")
             dispatcher.bot.leaveChat(chat.id)
             return False

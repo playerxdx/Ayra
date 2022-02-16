@@ -590,7 +590,7 @@ def __chat_settings__(chat_id, _):
     return f"This chat is enforcing *gbans*: `{sql.does_chat_gban(chat_id)}`."
 
 
-from tg_bot.modules.language import gs
+from .language import gs
 
 
 def get_help(chat):

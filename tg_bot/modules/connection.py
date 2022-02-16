@@ -9,20 +9,20 @@ from telegram.ext import (
 )
 
 import tg_bot.modules.sql.connection_sql as sql
-from tg_bot import dispatcher, SUDO_USERS, DEV_USERS, spamcheck
-from tg_bot.modules.helper_funcs import chat_status
-from tg_bot.modules.helper_funcs.alternate import send_message, typing_action
-user_admin = chat_status.user_admin
+from .. import dispatcher, SUDO_USERS, DEV_USERS, spamcheck
+from .helper_funcs import admin_status
+from .helper_funcs.alternate import send_message, typing_action
+user_admin_check = admin_status.user_admin_check
+AdminPerms = admin_status.AdminPerms
 
 
 @spamcheck
 @typing_action
-@user_admin
-def allow_connections(update, context) -> str:
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO)
+def allow_connections(update, context):
 
     chat = update.effective_chat
     args = context.args
-    # user = res_user(update.effective_user, update.effective_message.message_id, chat)
 
     if chat.type != chat.PRIVATE:
         if len(args) >= 1:
@@ -383,8 +383,7 @@ def connect_button(update, context):
         connect_chat(update, context)
 
 
-from tg_bot.modules.language import gs
-
+from .language import gs
 def get_help(chat):
     return gs(chat, "connections_help")
 

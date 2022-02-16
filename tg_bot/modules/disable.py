@@ -6,12 +6,18 @@ from telegram.ext import CommandHandler, MessageHandler
 from telegram.utils.helpers import escape_markdown
 
 from tg_bot import dispatcher, spamcheck
-from tg_bot.modules.helper_funcs.handlers import CMD_STARTERS, SpamChecker
-from tg_bot.modules.helper_funcs.misc import is_module_loaded
-from tg_bot.modules.helper_funcs.alternate import send_message, typing_action
-from tg_bot.modules.connection import connected
-from tg_bot.modules.language import gs
+ 
+from .helper_funcs.handlers import CMD_STARTERS, SpamChecker
+from .helper_funcs.misc import is_module_loaded
+from .helper_funcs.alternate import send_message, typing_action
+from .language import gs
+from .helper_funcs.admin_status import (
+    user_admin_check,
+    AdminPerms,
+    user_is_admin,
+)
 
+from .connection import connected
 def get_help(chat):
     return gs(chat, "disable_help")
 
@@ -23,12 +29,7 @@ FILENAME = __name__.rsplit(".", 1)[-1]
 
 # If module is due to be loaded, then setup all the magical handlers
 if is_module_loaded(FILENAME):
-    from tg_bot.modules.helper_funcs.chat_status import (
-        user_admin,
-        is_user_admin,
-    )
-
-    from tg_bot.modules.sql import disable_sql as sql
+    from .sql import disable_sql as sql
 
     DISABLE_CMDS = []
     DISABLE_OTHER = []
@@ -83,7 +84,7 @@ if is_module_loaded(FILENAME):
                             # check if command was disabled
                             is_disabled = command[
                                 0
-                            ] in ADMIN_CMDS and is_user_admin(update, user.id)
+                            ] in ADMIN_CMDS and user_is_admin(update, user.id)
                             if not is_disabled:
                                 return None
                             else:
@@ -117,7 +118,8 @@ if is_module_loaded(FILENAME):
 
 
     @spamcheck
-    @user_admin
+    # @user_admin_check(AdminPerms.CAN_CHANGE_INFO)
+    @user_admin_check(AdminPerms.CAN_CHANGE_INFO)
     @typing_action
     def disable(update, context):
         chat = update.effective_chat  # type: Optional[Chat]
@@ -162,7 +164,8 @@ if is_module_loaded(FILENAME):
         else:
             send_message(update.effective_message, "What should I disable?")
     @spamcheck
-    @user_admin
+    # @user_admin_check(AdminPerms.CAN_CHANGE_INFO)
+    @user_admin_check(AdminPerms.CAN_CHANGE_INFO)
     @typing_action
     def enable(update, context):
         chat = update.effective_chat  # type: Optional[Chat]
@@ -208,7 +211,7 @@ if is_module_loaded(FILENAME):
         else:
             send_message(update.effective_message, "What should I enable?")
     @spamcheck
-    @user_admin
+    @user_admin_check(AdminPerms.CAN_CHANGE_INFO)
     @typing_action
     def list_cmds(update, context):
         if DISABLE_CMDS + DISABLE_OTHER:

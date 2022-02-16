@@ -1,38 +1,42 @@
-import re
+import re, random
 from html import escape
 import html
+from typing import Optional
+
 import telegram
 from telegram import ParseMode, InlineKeyboardMarkup, Message, InlineKeyboardButton
 from telegram.error import BadRequest
 from telegram.ext import (
     DispatcherHandlerStop,
     Filters,
-    CallbackQueryHandler,
-    MessageHandler,
 )
-from telegram.utils.helpers import mention_html, escape_markdown, mention_html
+from telegram.utils.helpers import  escape_markdown, mention_html
 
 from tg_bot import dispatcher, log, SUDO_USERS, spamcheck
-from tg_bot.modules.helper_funcs.chat_status import is_user_admin
-from tg_bot.modules.helper_funcs.extraction import extract_text
-from tg_bot.modules.helper_funcs.filters import CustomFilters
-from tg_bot.modules.helper_funcs.misc import build_keyboard_parser
-from tg_bot.modules.helper_funcs.msg_types import get_filter_type
-from tg_bot.modules.helper_funcs.string_handling import (
+
+from .helper_funcs.extraction import extract_text
+from .helper_funcs.filters import CustomFilters
+from .helper_funcs.misc import build_keyboard_parser, revert_buttons
+from .helper_funcs.msg_types import get_filter_type
+from .helper_funcs.string_handling import (
     split_quotes,
     button_markdown_parser,
     escape_invalid_curly_brackets,
     markdown_to_html,
 )
-from tg_bot.modules.log_channel import loggable
-from tg_bot.modules.sql import cust_filters_sql as sql
+from .log_channel import loggable
+from .sql import cust_filters_sql as sql
 
-from tg_bot.modules.connection import connected
+from .connection import connected
 
-from tg_bot.modules.helper_funcs.alternate import send_message, typing_action
-from tg_bot.modules.helper_funcs.decorators import kigcmd, kigmsg, kigcallback
+from .helper_funcs.alternate import send_message, typing_action
+from .helper_funcs.decorators import kigcmd, kigmsg, kigcallback
 
-from ..modules.helper_funcs.anonymous import user_admin as u_admin, AdminPerms, resolve_user as res_user, UserClass
+from .helper_funcs.admin_status import (
+    user_admin_check,
+    AdminPerms,
+    user_is_admin,
+)
 
 HANDLER_GROUP = 10
 
@@ -101,17 +105,17 @@ def list_handlers(update, context):
 @kigcmd(command='filter', run_async=False)
 @spamcheck
 @typing_action
-@u_admin(UserClass.ADMIN, AdminPerms.CAN_CHANGE_INFO)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO)
 @loggable
-def filters(update, context) -> str:  # sourcery no-metrics
+def filters(update, context) -> None:  # sourcery no-metrics
     chat = update.effective_chat
-    u = update.effective_user
+    user = update.effective_user
     msg = update.effective_message
     args = msg.text.split(
         None, 1
     )  # use python's maxsplit to separate Cmd, keyword, and reply_text
 
-    user = res_user(u, msg.message_id, chat)
+
 
     conn = connected(context.bot, update, chat, user.id)
     if conn is not False:
@@ -236,14 +240,13 @@ def filters(update, context) -> str:  # sourcery no-metrics
 @kigcmd(command='stop', run_async=False)
 @spamcheck
 @typing_action
-@u_admin(UserClass.ADMIN, AdminPerms.CAN_CHANGE_INFO)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO)
 @loggable
 def stop_filter(update, context) -> str:
     chat = update.effective_chat
-    u = update.effective_user
+    user = update.effective_user
     args = update.effective_message.text.split(None, 1)
     message = update.effective_message
-    user = res_user(u, message.message_id, chat)
 
     conn = connected(context.bot, update, chat, user.id)
     if conn is not False:
@@ -304,10 +307,18 @@ def reply_filter(update, context):  # sourcery no-metrics
         pattern = r"( |^|[^\w])" + re.escape(keyword) + r"( |$|[^\w])"
         if re.search(pattern, to_match, flags=re.IGNORECASE):
             filt = sql.get_filter(chat.id, keyword)
+
+            # print(keyword)
+            # print(pattern)
+            # print(to_match)
+            if to_match.endswith("raw") and to_match.lower() == (keyword + (" raw" or " noformat")):
+                no_format = True
+                # print(" aaaa raw")
+            else:
+                no_format = False
+
             if filt.reply == "there is should be a new reply":
                 buttons = sql.get_buttons(chat.id, filt.keyword)
-                keyb = build_keyboard_parser(context.bot, chat.id, buttons)
-                keyboard = InlineKeyboardMarkup(keyb)
 
                 VALID_WELCOME_FORMATTERS = [
                     "first",
@@ -322,7 +333,7 @@ def reply_filter(update, context):  # sourcery no-metrics
                 ]
                 if filt.reply_text:
 
-                    if "%%%" in filt.reply_text:
+                    if not no_format and "%%%" in filt.reply_text:
                         split = filt.reply_text.split("%%%")
                         if all(split):
                             text = random.choice(split)
@@ -392,12 +403,22 @@ def reply_filter(update, context):  # sourcery no-metrics
                     filtext = ""
 
                 if "{admin}" in filt.reply_text:
-                    if is_user_admin(update, user):
+                    if user_is_admin(update, user.id):
                         return
 
                 if "{user}" in filt.reply_text:
-                    if not is_user_admin(update, user):
+                    if not user_is_admin(update, user.id):
                         return
+
+                keyb = []
+                if no_format:
+                    parse_mode = None
+                    filtext += revert_buttons(buttons)
+                    keyboard = InlineKeyboardMarkup(keyb)
+                else:
+                    parse_mode = ParseMode.HTML
+                    keyb = build_keyboard_parser(context.bot, chat.id, buttons)
+                    keyboard = InlineKeyboardMarkup(keyb)
 
                 if filt.file_type in (sql.Types.BUTTON_TEXT, sql.Types.TEXT):
                     try:
@@ -405,7 +426,7 @@ def reply_filter(update, context):  # sourcery no-metrics
                             chat.id,
                             markdown_to_html(filtext),
                             reply_to_message_id=message.message_id,
-                            parse_mode=ParseMode.HTML,
+                            parse_mode=parse_mode,
                             disable_web_page_preview=True,
                             reply_markup=keyboard,
                         )
@@ -416,7 +437,7 @@ def reply_filter(update, context):  # sourcery no-metrics
                                 context.bot.send_message(
                                     chat.id,
                                     markdown_to_html(filtext),
-                                    parse_mode=ParseMode.HTML,
+                                    parse_mode=parse_mode,
                                     disable_web_page_preview=True,
                                     reply_markup=keyboard,
                                 )
@@ -449,7 +470,7 @@ def reply_filter(update, context):  # sourcery no-metrics
                         filt.file_id,
                         caption=markdown_to_html(filtext),
                         reply_to_message_id=message.message_id,
-                        parse_mode=ParseMode.HTML,
+                        parse_mode=parse_mode,
                         reply_markup=keyboard,
                     )
             elif filt.is_sticker:
@@ -465,15 +486,24 @@ def reply_filter(update, context):  # sourcery no-metrics
             elif filt.is_video:
                 message.reply_video(filt.reply)
             elif filt.has_markdown:
+
+                keyb = []
                 buttons = sql.get_buttons(chat.id, filt.keyword)
-                keyb = build_keyboard_parser(context.bot, chat.id, buttons)
-                keyboard = InlineKeyboardMarkup(keyb)
+                if no_format:
+                    parse_mode = None
+                    filt.reply += revert_buttons(buttons)
+                    keyboard = InlineKeyboardMarkup(keyb)
+                else:
+                    parse_mode = ParseMode.MARKDOWN
+                    keyb = build_keyboard_parser(context.bot, chat.id, buttons)
+                    keyboard = InlineKeyboardMarkup(keyb)
+
 
                 try:
                     send_message(
                         update.effective_message,
                         filt.reply,
-                        parse_mode=ParseMode.MARKDOWN,
+                        parse_mode=parse_mode,
                         disable_web_page_preview=True,
                         reply_markup=keyboard,
                     )
@@ -493,7 +523,7 @@ def reply_filter(update, context):  # sourcery no-metrics
                             context.bot.send_message(
                                 chat.id,
                                 filt.reply,
-                                parse_mode=ParseMode.MARKDOWN,
+                                parse_mode=parse_mode,
                                 disable_web_page_preview=True,
                                 reply_markup=keyboard,
                             )
@@ -642,10 +672,14 @@ def __chat_settings__(chat_id, user_id):
     cust_filters = sql.get_chat_triggers(chat_id)
     return "There are `{}` custom filters here.".format(len(cust_filters))
 
-from tg_bot.modules.language import gs
+from .language import gs
 
 def get_help(chat):
     return gs(chat, "cust_filters_help")
 
 __mod_name__ = "Filters"
 
+
+# __handlers__ = [
+#     HANDLER_GROUP,
+# ]

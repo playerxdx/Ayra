@@ -1,35 +1,35 @@
-import json, time, os
+import json
+import os
+import time
 from io import BytesIO
-from telegram import ParseMode, Message
+
+from telegram import Message, ParseMode
 from telegram.error import BadRequest
-import tg_bot.modules.sql.notes_sql as sql
-from tg_bot import dispatcher, log as LOGGER, OWNER_ID, spamcheck
-from tg_bot.__main__ import DATA_IMPORT
-from tg_bot.modules.helper_funcs.alternate import typing_action
-from tg_bot.modules.helper_funcs.decorators import kigcmd
-# from tg_bot.modules.rules import get_rules
-import tg_bot.modules.sql.rules_sql as rulessql
 
-# from tg_bot.modules.sql import warns_sql as warnssql
 import tg_bot.modules.sql.blacklist_sql as blacklistsql
-from tg_bot.modules.sql import disable_sql as disabledsql
-
-# from tg_bot.modules.sql import cust_filters_sql as filtersql
-# import tg_bot.modules.sql.welcome_sql as welcsql
 import tg_bot.modules.sql.locks_sql as locksql
-from tg_bot.modules.connection import connected
+import tg_bot.modules.sql.notes_sql as sql
+import tg_bot.modules.sql.rules_sql as rulessql
+from .. import OWNER_ID, dispatcher, log as LOGGER, spamcheck
+from ..__main__ import DATA_IMPORT
+from .connection import connected
+from .helper_funcs.alternate import typing_action
+from .helper_funcs.decorators import kigcmd
+from .sql import disable_sql as disabledsql
+from .helper_funcs.admin_status import (
+    user_admin_check,
+    AdminPerms,
+)
 
-from ..modules.helper_funcs.anonymous import user_admin as u_admin, AdminPerms, resolve_user as res_user, UserClass
 
 @kigcmd(command='import')
 @spamcheck
 @typing_action
-@u_admin(UserClass.ADMIN, AdminPerms.CAN_CHANGE_INFO)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO)
 def import_data(update, context):
     msg = update.effective_message
     chat = update.effective_chat
-    u = update.effective_user
-    user = res_user(u, msg.message_id, chat)
+    user = update.effective_user
     # TODO: allow uploading doc with command, not just as reply
     # only work with a doc
 
@@ -118,15 +118,13 @@ def import_data(update, context):
 
 @kigcmd(command='export')
 @spamcheck
-@u_admin(UserClass.ADMIN, AdminPerms.CAN_CHANGE_INFO)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO)
 def export_data(update, context):  # sourcery no-metrics
     chat_data = context.chat_data
     msg = update.effective_message  # type: Optional[Message]
-    u = update.effective_user  # type: Optional[User]
+    user = update.effective_user  # type: Optional[User]
     chat = update.effective_chat
-    
-    user = res_user(u, msg.message_id, chat)
-    
+
     chat_id = update.effective_chat.id
     current_chat_id = update.effective_chat.id
     conn = connected(context.bot, update, chat, user.id, need_admin=True)
@@ -333,7 +331,8 @@ def export_data(update, context):  # sourcery no-metrics
     context.bot.sendDocument(
         current_chat_id,
         document=open("{}{}.json".format(dispatcher.bot.username, chat_id), "rb"),
-        caption="*Successfully Exported backup:*\nChat: `{}`\nChat ID: `{}`\nOn: `{}`\n\nNote: This `{}-Backup` was specially made for notes.".format(
+        caption=("*Successfully Exported backup:*\nChat: `{}`\nChat ID: `{}`\nOn: `{}`\n"
+                "\nNote: This `{}-Backup` was specially made for notes.").format(
             chat.title, chat_id, tgl, dispatcher.bot.username
         ),
         timeout=360,

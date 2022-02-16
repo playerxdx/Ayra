@@ -7,9 +7,9 @@ from telegram.utils.helpers import mention_html
 
 import tg_bot.modules.sql.approve_sql as sql
 
-from tg_bot.modules.helper_funcs.decorators import kigcmd, kigcallback
-from tg_bot.modules.helper_funcs.extraction import extract_user
-from tg_bot.modules.log_channel import loggable
+from .helper_funcs.decorators import kigcmd, kigcallback
+from .helper_funcs.extraction import extract_user
+from .log_channel import loggable
 from tg_bot import SUDO_USERS, spamcheck
 from .helper_funcs.admin_status import (
     user_admin_check,
@@ -204,7 +204,7 @@ def unapproveall_btn(update: Update, _: CallbackContext):
             query.answer("Only owner of the chat can do this.")
 
 
-from tg_bot.modules.language import gs
+from .language import gs
 
 
 def get_help(chat):
