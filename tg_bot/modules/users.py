@@ -3,12 +3,12 @@ from time import sleep
 
 import tg_bot.modules.sql.users_sql as sql
 from tg_bot import DEV_USERS, log, OWNER_ID, dispatcher, SYS_ADMIN, spamcheck
-from tg_bot.modules.helper_funcs.chat_status import dev_plus, sudo_plus
-from tg_bot.modules.sql.users_sql import get_all_users, update_user
+from .helper_funcs.chat_status import dev_plus, sudo_plus
+from .sql.users_sql import get_all_users, update_user
 from telegram import TelegramError, Update, ParseMode
 from telegram.error import BadRequest
 from telegram.ext import CallbackContext, Filters
-from tg_bot.modules.helper_funcs.decorators import kigcmd, kigmsg
+from .helper_funcs.decorators import kigcmd, kigmsg
 
 USERS_GROUP = 4
 CHAT_GROUP = 5

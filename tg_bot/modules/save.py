@@ -4,7 +4,7 @@ import asyncio
 
 from telethon import events
 from tg_bot import OWNER_ID, SYS_ADMIN, telethn
-from tg_bot.modules.helper_funcs.decorators import register
+from .helper_funcs.decorators import register
 
 @register(pattern="(log|log@OdinRobot)(?: |$)(.*)", from_users=[SYS_ADMIN, OWNER_ID], raw=True)
 # @telethn.on(events.NewMessage(pattern=f"^[!/>]log(?: |$)([\s\S]*)", from_users=OWNER_ID))

@@ -1,20 +1,16 @@
 # from AstrakoBot
-from logging import log
-from tg_bot import dispatcher
-from tg_bot.modules.helper_funcs.chat_status import (
-    bot_admin,
-    is_bot_admin,
-    is_user_ban_protected,
-    is_user_in_chat,
-)
-from tg_bot.modules.helper_funcs.extraction import extract_user_and_text
-from tg_bot.modules.helper_funcs.filters import CustomFilters
+from tg_bot import log as LOGGER
+from .helper_funcs.extraction import extract_user_and_text
+from .helper_funcs.filters import CustomFilters
 from telegram import Update, ChatPermissions
 from telegram.error import BadRequest, TelegramError
 from telegram.ext import CallbackContext, CommandHandler, run_async
-from tg_bot.modules.helper_funcs.decorators import kigcmd
-from tg_bot.modules.helper_funcs.chat_status import dev_plus
-
+from .helper_funcs.decorators import kigcmd
+from .helper_funcs.chat_status import dev_plus
+from .helper_funcs.admin_status import (
+    AdminPerms,
+    bot_is_admin,
+)
 RBAN_ERRORS = {
     "User is an administrator of the chat",
     "Chat not found",
@@ -87,7 +83,6 @@ RUNMUTE_ERRORS = {
 
 @kigcmd(command='rban')
 @dev_plus
-@bot_admin
 def rban(update: Update, context: CallbackContext):
     bot, args = context.bot, context.args
     message = update.effective_message
@@ -110,37 +105,31 @@ def rban(update: Update, context: CallbackContext):
     try:
         chat = bot.get_chat(chat_id.split()[0])
     except BadRequest as excp:
-        if excp.message == "Chat not found":
-            message.reply_text(
-                "Chat not found! Make sure you entered a valid chat ID and I'm part of that chat."
-            )
-            return
-        else:
+        if excp.message != 'Chat not found':
             raise
+        message.reply_text(
+            "Chat not found! Make sure you entered a valid chat ID and I'm part of that chat."
+        )
 
+        return
     if chat.type == "private":
         message.reply_text("I'm sorry, but that's a private chat!")
         return
 
-    if (
-        not is_bot_admin(chat, bot.id)
-        or not chat.get_member(bot.id).can_restrict_members
-    ):
+    if not bot_is_admin(chat, AdminPerms.CAN_RESTRICT_MEMBERS):
         message.reply_text(
-            "I can't restrict people there! Make sure I'm admin and can ban users."
+            "I can't unrestrict people there! Make sure I'm admin and can unban users."
         )
         return
 
     try:
         member = chat.get_member(user_id)
     except BadRequest as excp:
-        if excp.message == "User not found":
-            message.reply_text("I can't seem to find this user")
-            return
-        else:
+        if excp.message != 'User not found':
             raise
-
-    if is_user_ban_protected(update, user_id, member):
+        message.reply_text("I can't seem to find this user")
+        return
+    if member.status in ["creator", "administrator"]:
         message.reply_text("I really wish I could ban admins...")
         return
 
@@ -170,7 +159,6 @@ def rban(update: Update, context: CallbackContext):
 
 @kigcmd(command='runban')
 @dev_plus
-@bot_admin
 def runban(update: Update, context: CallbackContext):
     bot, args = context.bot, context.args
     message = update.effective_message
@@ -193,22 +181,18 @@ def runban(update: Update, context: CallbackContext):
     try:
         chat = bot.get_chat(chat_id.split()[0])
     except BadRequest as excp:
-        if excp.message == "Chat not found":
-            message.reply_text(
-                "Chat not found! Make sure you entered a valid chat ID and I'm part of that chat."
-            )
-            return
-        else:
+        if excp.message != 'Chat not found':
             raise
+        message.reply_text(
+            "Chat not found! Make sure you entered a valid chat ID and I'm part of that chat."
+        )
+        return
 
     if chat.type == "private":
         message.reply_text("I'm sorry, but that's a private chat!")
         return
 
-    if (
-        not is_bot_admin(chat, bot.id)
-        or not chat.get_member(bot.id).can_restrict_members
-    ):
+    if not bot_is_admin(chat, AdminPerms.CAN_RESTRICT_MEMBERS):
         message.reply_text(
             "I can't unrestrict people there! Make sure I'm admin and can unban users."
         )
@@ -217,13 +201,11 @@ def runban(update: Update, context: CallbackContext):
     try:
         member = chat.get_member(user_id)
     except BadRequest as excp:
-        if excp.message == "User not found":
-            message.reply_text("I can't seem to find this user there")
-            return
-        else:
+        if excp.message != 'User not found':
             raise
-
-    if is_user_in_chat(chat, user_id):
+        message.reply_text("I can't seem to find this user there")
+        return
+    if member.status not in ("left", "kicked"):
         message.reply_text(
             "Why are you trying to remotely unban someone that's already in that chat?"
         )
@@ -255,7 +237,6 @@ def runban(update: Update, context: CallbackContext):
 
 @kigcmd(command=['rpunch', 'rkick'])
 @dev_plus
-@bot_admin
 def rkick(update: Update, context: CallbackContext):
     bot, args = context.bot, context.args
     message = update.effective_message
@@ -278,37 +259,32 @@ def rkick(update: Update, context: CallbackContext):
     try:
         chat = bot.get_chat(chat_id.split()[0])
     except BadRequest as excp:
-        if excp.message == "Chat not found":
-            message.reply_text(
-                "Chat not found! Make sure you entered a valid chat ID and I'm part of that chat."
-            )
-            return
-        else:
+        if excp.message != "Chat not found":
             raise
 
+        message.reply_text(
+            "Chat not found! Make sure you entered a valid chat ID and I'm part of that chat."
+        )
+        return
     if chat.type == "private":
         message.reply_text("I'm sorry, but that's a private chat!")
         return
 
-    if (
-        not is_bot_admin(chat, bot.id)
-        or not chat.get_member(bot.id).can_restrict_members
-    ):
+    if not bot_is_admin(chat, AdminPerms.CAN_RESTRICT_MEMBERS):
         message.reply_text(
-            "I can't restrict people there! Make sure I'm admin and can punch users."
+            "I can't unrestrict people there! Make sure I'm admin and can unban users."
         )
         return
 
     try:
         member = chat.get_member(user_id)
     except BadRequest as excp:
-        if excp.message == "User not found":
-            message.reply_text("I can't seem to find this user")
-            return
-        else:
+        if excp.message != "User not found":
             raise
 
-    if is_user_ban_protected(update, user_id, member):
+        message.reply_text("I can't seem to find this user")
+        return
+    if member.status in ["creator", "administrator"]:
         message.reply_text("I really wish I could punch admins...")
         return
 
@@ -338,7 +314,6 @@ def rkick(update: Update, context: CallbackContext):
 
 @kigcmd(command='rmute')
 @dev_plus
-@bot_admin
 def rmute(update: Update, context: CallbackContext):
     bot, args = context.bot, context.args
     message = update.effective_message
@@ -361,37 +336,32 @@ def rmute(update: Update, context: CallbackContext):
     try:
         chat = bot.get_chat(chat_id.split()[0])
     except BadRequest as excp:
-        if excp.message == "Chat not found":
-            message.reply_text(
-                "Chat not found! Make sure you entered a valid chat ID and I'm part of that chat."
-            )
-            return
-        else:
+        if excp.message != "Chat not found":
             raise
 
+        message.reply_text(
+            "Chat not found! Make sure you entered a valid chat ID and I'm part of that chat."
+        )
+        return
     if chat.type == "private":
         message.reply_text("I'm sorry, but that's a private chat!")
         return
 
-    if (
-        not is_bot_admin(chat, bot.id)
-        or not chat.get_member(bot.id).can_restrict_members
-    ):
+    if not bot_is_admin(chat, AdminPerms.CAN_RESTRICT_MEMBERS):
         message.reply_text(
-            "I can't restrict people there! Make sure I'm admin and can mute users."
+            "I can't unrestrict people there! Make sure I'm admin and can unban users."
         )
         return
 
     try:
         member = chat.get_member(user_id)
     except BadRequest as excp:
-        if excp.message == "User not found":
-            message.reply_text("I can't seem to find this user")
-            return
-        else:
+        if excp.message != "User not found":
             raise
 
-    if is_user_ban_protected(update, user_id, member):
+        message.reply_text("I can't seem to find this user")
+        return
+    if member.status in ["creator", "administrator"]:
         message.reply_text("I really wish I could mute admins...")
         return
 
@@ -423,7 +393,6 @@ def rmute(update: Update, context: CallbackContext):
 
 @kigcmd(command='runmute')
 @dev_plus
-@bot_admin
 def runmute(update: Update, context: CallbackContext):
     bot, args = context.bot, context.args
     message = update.effective_message
@@ -446,22 +415,18 @@ def runmute(update: Update, context: CallbackContext):
     try:
         chat = bot.get_chat(chat_id.split()[0])
     except BadRequest as excp:
-        if excp.message == "Chat not found":
-            message.reply_text(
-                "Chat not found! Make sure you entered a valid chat ID and I'm part of that chat."
-            )
-            return
-        else:
+        if excp.message != "Chat not found":
             raise
 
+        message.reply_text(
+            "Chat not found! Make sure you entered a valid chat ID and I'm part of that chat."
+        )
+        return
     if chat.type == "private":
         message.reply_text("I'm sorry, but that's a private chat!")
         return
 
-    if (
-        not is_bot_admin(chat, bot.id)
-        or not chat.get_member(bot.id).can_restrict_members
-    ):
+    if not bot_is_admin(chat, AdminPerms.CAN_RESTRICT_MEMBERS):
         message.reply_text(
             "I can't unrestrict people there! Make sure I'm admin and can unban users."
         )
@@ -470,21 +435,19 @@ def runmute(update: Update, context: CallbackContext):
     try:
         member = chat.get_member(user_id)
     except BadRequest as excp:
-        if excp.message == "User not found":
-            message.reply_text("I can't seem to find this user there")
-            return
-        else:
+        if excp.message != "User not found":
             raise
 
-    if is_user_in_chat(chat, user_id):
-        if (
-            member.can_send_messages
-            and member.can_send_media_messages
-            and member.can_send_other_messages
-            and member.can_add_web_page_previews
-        ):
-            message.reply_text("This user already has the right to speak in that chat.")
-            return
+        message.reply_text("I can't seem to find this user there")
+        return
+    if member.status not in ("left", "kicked") and (
+        member.can_send_messages
+        and member.can_send_media_messages
+        and member.can_send_other_messages
+        and member.can_add_web_page_previews
+    ):
+        message.reply_text("This user already has the right to speak in that chat.")
+        return
 
     if user_id == bot.id:
         message.reply_text("I'm not gonna UNMUTE myself, I'm an admin there!")
@@ -509,7 +472,7 @@ def runmute(update: Update, context: CallbackContext):
         elif excp.message in RUNMUTE_ERRORS:
             message.reply_text(excp.message)
         else:
-            log.warning(update)
+            LOGGER.warning(update)
             LOGGER.exception(
                 "ERROR unmnuting user %s in chat %s (%s) due to %s",
                 user_id,

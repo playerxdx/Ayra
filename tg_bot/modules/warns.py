@@ -5,26 +5,19 @@ from sqlalchemy.sql.expression import false
 
 import telegram
 from tg_bot import BAN_STICKER, DEV_USERS, OWNER_ID, SUDO_USERS, WHITELIST_USERS, dispatcher, spamcheck
-#from tg_bot.modules.disable import DisableAbleCommandHandler
-from tg_bot.modules.helper_funcs.chat_status import (
-    bot_admin,
-    can_restrict,
-    is_user_admin,
-    can_delete,
-    user_admin_no_reply,
-    is_anon
-)
-from tg_bot.modules.helper_funcs.extraction import (
+#from .disable import DisableAbleCommandHandler
+
+from .helper_funcs.extraction import (
     extract_text,
     extract_user,
     extract_user_and_text,
 )
-from tg_bot.modules.helper_funcs.filters import CustomFilters
-from tg_bot.modules.helper_funcs.misc import split_message
-from tg_bot.modules.helper_funcs.string_handling import split_quotes
-from tg_bot.modules.log_channel import loggable
-from tg_bot.modules.sql import warns_sql as sql
-from tg_bot.modules.sql.approve_sql import is_approved
+from .helper_funcs.filters import CustomFilters
+from .helper_funcs.misc import split_message
+from .helper_funcs.string_handling import split_quotes
+from .log_channel import loggable
+from .sql import warns_sql as sql
+from .sql.approve_sql import is_approved
 from telegram import (
     CallbackQuery,
     Chat,
@@ -42,9 +35,17 @@ from telegram.ext import (
     Filters,
 )
 from telegram.utils.helpers import mention_html
-from tg_bot.modules.helper_funcs.decorators import kigcmd, kigmsg, kigcallback
+from .helper_funcs.decorators import kigcmd, kigmsg, kigcallback
 
-from ..modules.helper_funcs.anonymous import user_admin as u_admin, AdminPerms, resolve_user as res_user, UserClass
+from .helper_funcs.admin_status import (
+    user_admin_check,
+    bot_admin_check,
+    AdminPerms,
+    get_bot_member,
+    bot_is_admin,
+    user_is_admin,
+    user_not_admin_check,
+)
 
 WARN_HANDLER_GROUP = 9
 CURRENT_WARNING_FILTER_STRING = "<b>Current warning filters in this chat:</b>\n"
@@ -52,7 +53,7 @@ WARNS_GROUP = 2
 
 def warn_immune(message, update, uid, warner):
 
-    if is_user_admin(update, uid):
+    if user_is_admin(update, uid):
         if uid is OWNER_ID:
             message.reply_text("This is my CREATOR, how dare you!")
             return True
@@ -373,8 +374,8 @@ def dwarn(
     return log_reason
 
 @kigcallback(pattern=r"rm_warn")
-@user_admin_no_reply
-@bot_admin
+@bot_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS)
+@user_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS, noreply=True)
 @loggable
 def button(update: Update, context: CallbackContext) -> str:
     query: Optional[CallbackQuery] = update.callback_query
@@ -410,32 +411,31 @@ def button(update: Update, context: CallbackContext) -> str:
 @kigcmd(command='dswarn', filters=Filters.chat_type.groups)
 @kigcmd(command='warn', filters=Filters.chat_type.groups)
 @spamcheck
-@can_restrict
-@u_admin(UserClass.MOD, AdminPerms.CAN_RESTRICT_MEMBERS)
+@bot_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS)
+@user_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS, allow_mods = True)
 @loggable
 def warn_user(update: Update, context: CallbackContext) -> str:
     args = context.args
     message: Optional[Message] = update.effective_message
     chat: Optional[Chat] = update.effective_chat
-    u: Optional[User] = update.effective_user
-    warner = res_user(u, message.message_id, chat)
+    warner: Optional[User] = update.effective_user
 
     user_id, reason = extract_user_and_text(message, args)
     if message.text.startswith('/s') or message.text.startswith('!s') or message.text.startswith('>s'):
         silent = True
-        if not can_delete(chat, context.bot.id):
+        if not bot_is_admin(chat, AdminPerms.CAN_DELETE_MESSAGES):
             return ""
     else:
         silent = False
     if message.text.startswith('/d') or message.text.startswith('!d') or message.text.startswith('>d'):
         delban = True
-        if not can_delete(chat, context.bot.id):
+        if not bot_is_admin(chat, AdminPerms.CAN_DELETE_MESSAGES):
             return ""
     else:
         delban = False
     if message.text.startswith('/ds') or message.text.startswith('!ds') or message.text.startswith('>ds'):
         delsilent = True
-        if not can_delete(chat, context.bot.id):
+        if not bot_is_admin(chat, AdminPerms.CAN_DELETE_MESSAGES):
             return ""
     else:
         delsilent = False
@@ -515,19 +515,16 @@ def warn_user(update: Update, context: CallbackContext) -> str:
 
 @kigcmd(command=['restwarn', 'resetwarns'], filters=Filters.chat_type.groups)
 @spamcheck
-@bot_admin
-@u_admin(UserClass.ADMIN, AdminPerms.CAN_RESTRICT_MEMBERS)
+@bot_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS)
+@user_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS)
 @loggable
 def reset_warns(update: Update, context: CallbackContext) -> str:
     args = context.args
     message: Optional[Message] = update.effective_message
     chat: Optional[Chat] = update.effective_chat
-    u: Optional[User] = update.effective_user
-    user = res_user(u, message.message_id, chat)
+    user: Optional[User] = update.effective_user
 
-    user_id = extract_user(message, args)
-
-    if user_id:
+    if user_id:= extract_user(message, args):
         sql.reset_warns(user_id, chat.id)
         message.reply_text("Warns have been reset!")
         warned = chat.get_member(user_id).user
@@ -574,13 +571,13 @@ def warns(update: Update, context: CallbackContext):
 
 @kigcmd(command='addwarn', filters=Filters.chat_type.groups, run_async=False)
 @spamcheck
+@bot_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS)
 # Dispatcher handler stop - do not async
-@u_admin(UserClass.MOD, AdminPerms.CAN_CHANGE_INFO)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO, allow_mods = True)
 def add_warn_filter(update: Update, context: CallbackContext):
     chat: Optional[Chat] = update.effective_chat
     msg: Optional[Message] = update.effective_message
-    u = update.effective_user
-    user = res_user(u, msg.message_id, chat)
+    user = update.effective_user
 
     args = msg.text.split(
         None, 1
@@ -610,12 +607,12 @@ def add_warn_filter(update: Update, context: CallbackContext):
 
 @kigcmd(command=['nowarn', 'stopwarn'], filters=Filters.chat_type.groups)
 @spamcheck
-@u_admin(UserClass.ADMIN, AdminPerms.CAN_CHANGE_INFO)
+@bot_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO)
 def remove_warn_filter(update: Update, context: CallbackContext):
     chat: Optional[Chat] = update.effective_chat
     msg: Optional[Message] = update.effective_message
-    u = update.effective_user
-    user = res_user(u, msg.message_id, chat)
+    user = update.effective_user
 
     args = msg.text.split(
         None, 1
@@ -699,15 +696,13 @@ def reply_filter(update: Update, context: CallbackContext) -> Optional[str]:
 
 @kigcmd(command='warnlimit', filters=Filters.chat_type.groups)
 @spamcheck
-@u_admin(UserClass.ADMIN, AdminPerms.CAN_CHANGE_INFO)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO)
 @loggable
 def set_warn_limit(update: Update, context: CallbackContext) -> str:
     args = context.args
     chat: Optional[Chat] = update.effective_chat
-    u: Optional[User] = update.effective_user
+    user = update.effective_user
     msg: Optional[Message] = update.effective_message
-    user = res_user(u, msg.message_id, chat)
-
     if args:
         if args[0].isdigit():
             if int(args[0]) < 3:
@@ -724,20 +719,20 @@ def set_warn_limit(update: Update, context: CallbackContext) -> str:
         else:
             msg.reply_text("Give me a number as an arg!")
     else:
-        limit, soft_warn = sql.get_warn_setting(chat.id)
+        limit, _ = sql.get_warn_setting(chat.id)
 
         msg.reply_text("The current warn limit is {}".format(limit))
     return ""
 
 @kigcmd(command='strongwarn', filters=Filters.chat_type.groups)
 @spamcheck
-@u_admin(UserClass.ADMIN, AdminPerms.CAN_CHANGE_INFO)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO)
 def set_warn_strength(update: Update, context: CallbackContext):
     args = context.args
     chat: Optional[Chat] = update.effective_chat
-    u: Optional[User] = update.effective_user
+    user: Optional[User] = update.effective_user
     msg: Optional[Message] = update.effective_message
-    user = res_user(u, msg.message_id, chat)
+
 
     if args:
         if args[0].lower() in ("on", "yes"):
@@ -803,7 +798,7 @@ def __chat_settings__(chat_id, user_id):
     )
 
 
-from tg_bot.modules.language import gs
+from .language import gs
 
 
 def get_help(chat):

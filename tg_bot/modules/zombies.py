@@ -1,10 +1,10 @@
 # from AstrakoBot
 from asyncio import sleep
 
-from tg_bot.modules.helper_funcs.decorators import register
-from tg_bot.modules.sql.clear_cmd_sql import get_clearcmd
-from tg_bot.modules.helper_funcs.telethn.chatstatus import user_is_admin, user_can_ban
-from tg_bot.modules.helper_funcs.misc import delete
+from .helper_funcs.decorators import register
+from .sql.clear_cmd_sql import get_clearcmd
+from .helper_funcs.telethn.chatstatus import user_is_admin, user_can_ban
+from .helper_funcs.misc import delete
 
 
 @register(pattern='zombies', groups_only=True)

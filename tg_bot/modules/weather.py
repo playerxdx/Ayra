@@ -8,9 +8,9 @@ from telegram import Bot, Update, ParseMode
 from telegram.ext import Updater, CommandHandler
 from telegram.ext import CallbackContext, run_async
 from tg_bot import WEATHER_API, dispatcher, spamcheck
-from tg_bot.modules.sql.clear_cmd_sql import get_clearcmd
-from tg_bot.modules.helper_funcs.misc import delete
-from tg_bot.modules.helper_funcs.decorators import kigcmd
+from .sql.clear_cmd_sql import get_clearcmd
+from .helper_funcs.misc import delete
+from .helper_funcs.decorators import kigcmd
 
 def get_tz(con):
     for c_code in c_n:

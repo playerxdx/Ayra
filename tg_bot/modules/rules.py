@@ -2,8 +2,7 @@ from typing import Optional
 
 import tg_bot.modules.sql.rules_sql as sql
 from tg_bot import dispatcher, spamcheck
-from tg_bot.modules.helper_funcs.chat_status import user_admin
-from tg_bot.modules.helper_funcs.string_handling import markdown_parser
+from .helper_funcs.string_handling import markdown_parser
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -15,9 +14,17 @@ from telegram import (
 from telegram.error import BadRequest
 from telegram.ext import CallbackContext, Filters
 from telegram.utils.helpers import escape_markdown
-from tg_bot.modules.helper_funcs.decorators import kigcmd
+from .helper_funcs.decorators import kigcmd
 
-from ..modules.helper_funcs.anonymous import user_admin as u_admin, AdminPerms, resolve_user as res_user, UserClass
+from .helper_funcs.admin_status import (
+    user_admin_check,
+    bot_admin_check,
+    AdminPerms,
+    get_bot_member,
+    bot_is_admin,
+    user_is_admin,
+    user_not_admin_check,
+)
 
 
 
@@ -82,13 +89,13 @@ def send_rules(update, chat_id, from_pm=False):
 
 @kigcmd(command='setrules', filters=Filters.chat_type.groups)
 @spamcheck
-@u_admin(UserClass.MOD, AdminPerms.CAN_CHANGE_INFO)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO, allow_mods = True)
 def set_rules(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     msg = update.effective_message  # type: Optional[Message]
     chat = update.effective_chat  # type: Optional[Chat]
-    u = update.effective_user  # type: Optional[User]
-    user = res_user(u, msg.message_id, chat)
+    user = update.effective_user  # type: Optional[User]
+
     raw_text = msg.text
     args = raw_text.split(None, 1)  # use python's maxsplit to separate cmd and args
     if len(args) == 2:
@@ -104,13 +111,13 @@ def set_rules(update: Update, context: CallbackContext):
 
 @kigcmd(command='clearrules', filters=Filters.chat_type.groups)
 @spamcheck
-@u_admin(UserClass.MOD, AdminPerms.CAN_CHANGE_INFO)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO, allow_mods = True)
 def clear_rules(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     chat = update.effective_chat  # type: Optional[Chat]
     msg = update.effective_message  # type: Optional[Message]
-    u = update.effective_user  # type: Optional[User]
-    user = res_user(u, msg.message_id, chat)
+    user = update.effective_user  # type: Optional[User]
+
     sql.set_rules(chat_id, "")
     update.effective_message.reply_text("Successfully cleared rules!")
 
@@ -133,7 +140,7 @@ def __chat_settings__(chat_id, user_id):
     return f"This chat has had it's rules set: `{bool(sql.get_rules(chat_id))}`"
 
 
-from tg_bot.modules.language import gs
+from .language import gs
 
 
 def get_help(chat):

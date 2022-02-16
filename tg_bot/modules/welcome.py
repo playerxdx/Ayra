@@ -19,18 +19,14 @@ from tg_bot import (
     sw,
     dispatcher,
 )
-from tg_bot.modules.helper_funcs.chat_status import (
-    is_user_ban_protected,
-    user_admin,
-)
-from tg_bot.modules.helper_funcs.misc import build_keyboard, revert_buttons
-from tg_bot.modules.helper_funcs.msg_types import get_welcome_type
-from tg_bot.modules.helper_funcs.string_handling import (
+from .helper_funcs.misc import build_keyboard, revert_buttons
+from .helper_funcs.msg_types import get_welcome_type
+from .helper_funcs.string_handling import (
     escape_invalid_curly_brackets,
     markdown_parser,
 )
-from tg_bot.modules.log_channel import loggable
-from tg_bot.modules.sql.antispam_sql import is_user_gbanned
+from .log_channel import loggable
+from .sql.antispam_sql import is_user_gbanned
 from telegram import (
     ChatPermissions,
     InlineKeyboardButton,
@@ -45,8 +41,16 @@ from telegram.ext import (
     Filters,
 )
 from telegram.utils.helpers import escape_markdown, mention_html, mention_markdown
-from tg_bot.modules.helper_funcs.decorators import kigcmd, kigmsg, kigcallback
-from ..modules.helper_funcs.anonymous import user_admin as u_admin, AdminPerms, resolve_user as res_user, UserClass
+from .helper_funcs.decorators import kigcmd, kigmsg, kigcallback
+from .helper_funcs.admin_status import (
+    user_admin_check,
+    bot_admin_check,
+    AdminPerms,
+    get_bot_member,
+    bot_is_admin,
+    user_is_admin,
+    user_not_admin_check,
+)
 import tg_bot.modules.sql.log_channel_sql as logsql
 
 VALID_WELCOME_FORMATTERS = [
@@ -336,7 +340,7 @@ def new_member(update: Update, context: CallbackContext):  # sourcery no-metrics
 
         # User exceptions from welcomemutes
         if (
-                is_user_ban_protected(update, new_mem.id, chat.get_member(new_mem.id))
+                chat.get_member(new_mem.id).status in ["creator", "administrator"]
                 or human_checks
         ):
             should_mute = False
@@ -702,13 +706,13 @@ def left_member(update: Update, context: CallbackContext):  # sourcery no-metric
 
 @kigcmd(command='welcome', filters=Filters.chat_type.groups)
 @spamcheck
-@u_admin(UserClass.MOD, AdminPerms.CAN_CHANGE_INFO)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO, allow_mods = True)
 def welcome(update: Update, context: CallbackContext):
     args = context.args
     chat = update.effective_chat
-    u = update.effective_user
+    user = update.effective_user
     msg = update.effective_message
-    user = res_user(u, msg.message_id, chat)
+
     # if no args, show current replies.
     if not args or args[0].lower() == "noformat":
         noformat = bool(args and args[0].lower() == "noformat")
@@ -768,13 +772,13 @@ def welcome(update: Update, context: CallbackContext):
 
 @kigcmd(command='goodbye', filters=Filters.chat_type.groups)
 @spamcheck
-@u_admin(UserClass.MOD, AdminPerms.CAN_CHANGE_INFO)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO, allow_mods = True)
 def goodbye(update: Update, context: CallbackContext):
     args = context.args
     chat = update.effective_chat
-    u = update.effective_user
+    user = update.effective_user
     msg = update.effective_message
-    user = res_user(u, msg.message_id, chat)
+
 
     if not args or args[0] == "noformat":
         noformat = bool(args and args[0].lower() == "noformat")
@@ -822,14 +826,14 @@ def goodbye(update: Update, context: CallbackContext):
 
 @kigcmd(command='setwelcome', filters=Filters.chat_type.groups)
 @spamcheck
-@u_admin(UserClass.MOD, AdminPerms.CAN_CHANGE_INFO)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO, allow_mods = True)
 @loggable
 def set_welcome(update: Update, context: CallbackContext) -> str:
     chat = update.effective_chat
     user = update.effective_user
-    u = update.effective_user
+    user = update.effective_user
     msg = update.effective_message
-    user = res_user(u, msg.message_id, chat)
+
 
     text, data_type, content, buttons = get_welcome_type(msg)
 
@@ -849,13 +853,13 @@ def set_welcome(update: Update, context: CallbackContext) -> str:
 
 @kigcmd(command='resetwelcome', filters=Filters.chat_type.groups)
 @spamcheck
-@u_admin(UserClass.MOD, AdminPerms.CAN_CHANGE_INFO)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO, allow_mods = True)
 @loggable
 def reset_welcome(update: Update, context: CallbackContext) -> str:
     chat = update.effective_chat
-    u = update.effective_user
+    user = update.effective_user
     msg = update.effective_message
-    user = res_user(u, msg.message_id, chat)
+
 
     sql.set_custom_welcome(chat.id, None, sql.DEFAULT_WELCOME, sql.Types.TEXT)
     update.effective_message.reply_text(
@@ -871,13 +875,13 @@ def reset_welcome(update: Update, context: CallbackContext) -> str:
 
 @kigcmd(command='setgoodbye', filters=Filters.chat_type.groups)
 @spamcheck
-@u_admin(UserClass.MOD, AdminPerms.CAN_CHANGE_INFO)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO, allow_mods = True)
 @loggable
 def set_goodbye(update: Update, context: CallbackContext) -> str:
     chat = update.effective_chat
-    u = update.effective_user
+    user = update.effective_user
     msg = update.effective_message
-    user = res_user(u, msg.message_id, chat)
+
     text, data_type, content, buttons = get_welcome_type(msg)
 
     if data_type is None:
@@ -895,13 +899,13 @@ def set_goodbye(update: Update, context: CallbackContext) -> str:
 
 @kigcmd(command='resetgoodbye', filters=Filters.chat_type.groups)
 @spamcheck
-@u_admin(UserClass.MOD, AdminPerms.CAN_CHANGE_INFO)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO, allow_mods = True)
 @loggable
 def reset_goodbye(update: Update, context: CallbackContext) -> str:
     chat = update.effective_chat
-    u = update.effective_user
+    user = update.effective_user
     msg = update.effective_message
-    user = res_user(u, msg.message_id, chat)
+
 
     sql.set_custom_gdbye(chat.id, sql.DEFAULT_GOODBYE, sql.Types.TEXT)
     update.effective_message.reply_text(
@@ -917,14 +921,14 @@ def reset_goodbye(update: Update, context: CallbackContext) -> str:
 
 @kigcmd(command='welcomemute', filters=Filters.chat_type.groups)
 @spamcheck
-@u_admin(UserClass.MOD, AdminPerms.CAN_CHANGE_INFO)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO, allow_mods = True)
 @loggable
 def welcomemute(update: Update, context: CallbackContext) -> str:
     args = context.args
     chat = update.effective_chat
-    u = update.effective_user
+    user = update.effective_user
     msg = update.effective_message
-    user = res_user(u, msg.message_id, chat)
+
 
     if len(args) >= 1:
         if args[0].lower() in ("off", "no"):
@@ -988,14 +992,14 @@ def welcomemute(update: Update, context: CallbackContext) -> str:
 
 @kigcmd(command='cleanwelcome', filters=Filters.chat_type.groups)
 @spamcheck
-@u_admin(UserClass.MOD, AdminPerms.CAN_CHANGE_INFO)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO, allow_mods = True)
 @loggable
 def clean_welcome(update: Update, context: CallbackContext) -> str:
     args = context.args
     chat = update.effective_chat
-    u = update.effective_user
+    user = update.effective_user
     msg = update.effective_message
-    user = res_user(u, msg.message_id, chat)
+
 
     if not args:
         clean_pref = sql.get_clean_pref(chat.id)
@@ -1033,17 +1037,13 @@ def clean_welcome(update: Update, context: CallbackContext) -> str:
 
 @kigcmd(command='cleanservice', filters=Filters.chat_type.groups)
 @spamcheck
-@user_admin
-@u_admin(UserClass.MOD, AdminPerms.CAN_CHANGE_INFO)
+@bot_admin_check(AdminPerms.CAN_DELETE_MESSAGES)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO, allow_mods = True)
 def cleanservice(update: Update, context: CallbackContext) -> str:
     args = context.args
     chat = update.effective_chat  # type: Optional[Chat]
-    msg = update.effective_message
-    u = update.effective_user
-    user = res_user(u, msg.message_id, chat)
     if chat.type == chat.PRIVATE:
-        curr = sql.clean_service(chat.id)
-        if curr:
+        if sql.clean_service(chat.id):
             update.effective_message.reply_text(
                 "Welcome clean service is : on", parse_mode=ParseMode.MARKDOWN
             )
@@ -1254,12 +1254,12 @@ WELC_MUTE_HELP_TXT = (
 )
 
 @kigcmd(command='welcomehelp')
-@user_admin
+@user_admin_check()
 def welcome_help(update: Update, context: CallbackContext):
     update.effective_message.reply_text(WELC_HELP_TXT, parse_mode=ParseMode.MARKDOWN)
 
 @kigcmd(command='welcomemutehelp')
-@user_admin
+@user_admin_check()
 def welcome_mute_help(update: Update, context: CallbackContext):
     update.effective_message.reply_text(
         WELC_MUTE_HELP_TXT, parse_mode=ParseMode.MARKDOWN
@@ -1291,7 +1291,7 @@ def __chat_settings__(chat_id, user_id):
     )
 
 
-from tg_bot.modules.language import gs
+from .language import gs
 
 
 def wlc_m_help(update: Update, context: CallbackContext):

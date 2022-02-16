@@ -10,7 +10,7 @@ from telegram import (InlineKeyboardButton, InlineKeyboardMarkup, ParseMode,
                       TelegramError, Update)
 from telegram.ext import CallbackContext
 from telegram.utils.helpers import mention_html
-from tg_bot.modules.helper_funcs.decorators import kigcmd
+from .helper_funcs.decorators import kigcmd
 
 
 @kigcmd(command='stickerid')
@@ -375,7 +375,7 @@ def makepack_internal(
         msg.reply_text("Failed to create sticker pack. Possibly due to blek mejik.")
 
 
-from tg_bot.modules.language import gs
+from .language import gs
 
 def get_help(chat):
     return gs(chat, "stickers_help")

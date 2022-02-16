@@ -1,12 +1,12 @@
 # from AstrakoBot
 import wikipedia, os, glob
 from tg_bot import dispatcher, spamcheck
-from tg_bot.modules.helper_funcs.misc import delete
-from tg_bot.modules.sql.clear_cmd_sql import get_clearcmd
+from .helper_funcs.misc import delete
+from .sql.clear_cmd_sql import get_clearcmd
 from telegram import ParseMode, Update
 from telegram.ext import CallbackContext, run_async
 from wikipedia.exceptions import DisambiguationError, PageError
-from tg_bot.modules.helper_funcs.decorators import kigcmd
+from .helper_funcs.decorators import kigcmd
 
 @kigcmd(command='wiki', can_disable=True)
 @spamcheck

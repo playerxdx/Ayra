@@ -8,43 +8,35 @@ from telegram.utils.helpers import mention_html, mention_markdown
 
 import tg_bot.modules.sql.blsticker_sql as sql
 from tg_bot import log as LOGGER, dispatcher
-from tg_bot.modules.connection import connected
-from tg_bot.modules.disable import DisableAbleCommandHandler
-from tg_bot.modules.helper_funcs.alternate import send_message
-from tg_bot.modules.helper_funcs.anonymous import AdminPerms
-from tg_bot.modules.helper_funcs.anonymous import user_admin as u_admin, AdminPerms, UserClass, resolve_user
-from tg_bot.modules.helper_funcs.chat_status import user_not_admin
-from tg_bot.modules.helper_funcs.misc import split_message
-from tg_bot.modules.helper_funcs.string_handling import extract_time
-from tg_bot.modules.language import gs
-from tg_bot.modules.log_channel import loggable
-from tg_bot.modules.sql.approve_sql import is_approved
-from tg_bot.modules.warns import warn
+from .connection import connected
+from .disable import DisableAbleCommandHandler
+from .helper_funcs.alternate import send_message
+from .helper_funcs.admin_status import (
+    user_admin_check,
+    AdminPerms,
+    user_not_admin_check,
+)
+from .helper_funcs.misc import split_message
+from .helper_funcs.string_handling import extract_time
+from .language import gs
+from .log_channel import loggable
+from .sql.approve_sql import is_approved
+from .warns import warn
 
 
-@u_admin(UserClass.MOD, AdminPerms.CAN_RESTRICT_MEMBERS)
+@user_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS, allow_mods = True)
 def blackliststicker(update: Update, context: CallbackContext):
     global text
     msg = update.effective_message  # type: Optional[Message]
     chat = update.effective_chat  # type: Optional[Chat]
-    u = update.effective_user  # type: Optional[User]
+    user = update.effective_user  # type: Optional[User]
     bot, args = context.bot, context.args
-    user = resolve_user(u, msg.message_id, chat)
-    conn = connected(bot, update, chat, user.id, need_admin=False)
-    if conn:
-        chat_id = conn
-        chat_name = dispatcher.bot.getChat(conn).title
-    else:
-        if chat.type == "private":
-            return
-        chat_id = update.effective_chat.id
-        chat_name = chat.title
 
     sticker_list = "<b>List blacklisted stickers currently in {}:</b>\n".format(
-        chat_name,
+        chat.title,
     )
 
-    all_stickerlist = sql.get_chat_stickers(chat_id)
+    all_stickerlist = sql.get_chat_stickers(chat.id)
 
     if len(args) > 0 and args[0].lower() == "copy":
         for trigger in all_stickerlist:
@@ -56,12 +48,12 @@ def blackliststicker(update: Update, context: CallbackContext):
     split_text = split_message(sticker_list)
     for text in split_text:
         if sticker_list == "<b>List blacklisted stickers currently in {}:</b>\n".format(
-                chat_name,
-        ).format(html.escape(chat_name)):
+                chat.title,
+        ).format(html.escape(chat.title)):
             send_message(
                 update.effective_message,
                 "There are no blacklist stickers in <b>{}</b>!".format(
-                    html.escape(chat_name),
+                    html.escape(chat.title),
                 ),
                 parse_mode=ParseMode.HTML,
             )
@@ -69,25 +61,15 @@ def blackliststicker(update: Update, context: CallbackContext):
     send_message(update.effective_message, text, parse_mode=ParseMode.HTML)
 
 
-@u_admin(UserClass.MOD, AdminPerms.CAN_RESTRICT_MEMBERS)
+@user_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS, allow_mods = True)
 def add_blackliststicker(update: Update, context: CallbackContext):
     bot = context.bot
     msg = update.effective_message  # type: Optional[Message]
     chat = update.effective_chat  # type: Optional[Chat]
-    u = update.effective_user  # type: Optional[User]
-    user = resolve_user(u, msg.message_id, chat)
+    user = update.effective_user  # type: Optional[User]
+
     words = msg.text.split(None, 1)
     bot = context.bot
-    conn = connected(bot, update, chat, user.id)
-    if conn:
-        chat_id = conn
-        chat_name = dispatcher.bot.getChat(conn).title
-    else:
-        chat_id = update.effective_chat.id
-        if chat.type == "private":
-            return
-        else:
-            chat_name = chat.title
 
     if len(words) > 1:
         text = words[1].replace("https://t.me/addstickers/", "")
@@ -99,7 +81,7 @@ def add_blackliststicker(update: Update, context: CallbackContext):
         for trigger in to_blacklist:
             try:
                 get = bot.getStickerSet(trigger)
-                sql.add_to_stickers(chat_id, trigger.lower())
+                sql.add_to_stickers(chat.id, trigger.lower())
                 added += 1
             except BadRequest:
                 send_message(
@@ -115,7 +97,7 @@ def add_blackliststicker(update: Update, context: CallbackContext):
             send_message(
                 update.effective_message,
                 "Sticker <code>{}</code> added to blacklist stickers in <b>{}</b>!".format(
-                    html.escape(to_blacklist[0]), html.escape(chat_name),
+                    html.escape(to_blacklist[0]), html.escape(chat.title),
                 ),
                 parse_mode=ParseMode.HTML,
             )
@@ -123,7 +105,7 @@ def add_blackliststicker(update: Update, context: CallbackContext):
             send_message(
                 update.effective_message,
                 "<code>{}</code> stickers added to blacklist sticker in <b>{}</b>!".format(
-                    added, html.escape(chat_name),
+                    added, html.escape(chat.title),
                 ),
                 parse_mode=ParseMode.HTML,
             )
@@ -135,7 +117,7 @@ def add_blackliststicker(update: Update, context: CallbackContext):
             return
         try:
             get = bot.getStickerSet(trigger)
-            sql.add_to_stickers(chat_id, trigger.lower())
+            sql.add_to_stickers(chat.id, trigger.lower())
             added += 1
         except BadRequest:
             send_message(
@@ -150,7 +132,7 @@ def add_blackliststicker(update: Update, context: CallbackContext):
         send_message(
             update.effective_message,
             "Sticker <code>{}</code> added to blacklist stickers in <b>{}</b>!".format(
-                trigger, html.escape(chat_name),
+                trigger, html.escape(chat.title),
             ),
             parse_mode=ParseMode.HTML,
         )
@@ -161,25 +143,15 @@ def add_blackliststicker(update: Update, context: CallbackContext):
         )
 
 
-@u_admin(UserClass.MOD, AdminPerms.CAN_RESTRICT_MEMBERS)
+@user_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS, allow_mods = True)
 def unblackliststicker(update: Update, context: CallbackContext):
     bot = context.bot
     msg = update.effective_message  # type: Optional[Message]
     chat = update.effective_chat  # type: Optional[Chat]
-    u = update.effective_user  # type: Optional[User]
-    user = resolve_user(u, msg.message_id, chat)
+    user = update.effective_user  # type: Optional[User]
+
     words = msg.text.split(None, 1)
     bot = context.bot
-    conn = connected(bot, update, chat, user.id)
-    if conn:
-        chat_id = conn
-        chat_name = dispatcher.bot.getChat(conn).title
-    else:
-        chat_id = update.effective_chat.id
-        if chat.type == "private":
-            return
-        else:
-            chat_name = chat.title
 
     if len(words) > 1:
         text = words[1].replace("https://t.me/addstickers/", "")
@@ -189,7 +161,7 @@ def unblackliststicker(update: Update, context: CallbackContext):
 
         successful = 0
         for trigger in to_unblacklist:
-            success = sql.rm_from_stickers(chat_id, trigger.lower())
+            success = sql.rm_from_stickers(chat.id, trigger.lower())
             if success:
                 successful += 1
 
@@ -198,7 +170,7 @@ def unblackliststicker(update: Update, context: CallbackContext):
                 send_message(
                     update.effective_message,
                     "Sticker <code>{}</code> deleted from blacklist in <b>{}</b>!".format(
-                        html.escape(to_unblacklist[0]), html.escape(chat_name),
+                        html.escape(to_unblacklist[0]), html.escape(chat.title),
                     ),
                     parse_mode=ParseMode.HTML,
                 )
@@ -211,7 +183,7 @@ def unblackliststicker(update: Update, context: CallbackContext):
             send_message(
                 update.effective_message,
                 "Sticker <code>{}</code> deleted from blacklist in <b>{}</b>!".format(
-                    successful, html.escape(chat_name),
+                    successful, html.escape(chat.title),
                 ),
                 parse_mode=ParseMode.HTML,
             )
@@ -236,13 +208,13 @@ def unblackliststicker(update: Update, context: CallbackContext):
         if trigger is None:
             send_message(update.effective_message, "Sticker is invalid!")
             return
-        success = sql.rm_from_stickers(chat_id, trigger.lower())
+        success = sql.rm_from_stickers(chat.id, trigger.lower())
 
         if success:
             send_message(
                 update.effective_message,
                 "Sticker <code>{}</code> deleted from blacklist in <b>{}</b>!".format(
-                    trigger, chat_name,
+                    trigger, chat.title,
                 ),
                 parse_mode=ParseMode.HTML,
             )
@@ -258,20 +230,20 @@ def unblackliststicker(update: Update, context: CallbackContext):
         )
 
 
+@user_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS, allow_mods = True)
 @loggable
-@u_admin(UserClass.MOD, AdminPerms.CAN_RESTRICT_MEMBERS)
 def blacklist_mode(update: Update, context: CallbackContext):
     global settypeblacklist
     chat = update.effective_chat  # type: Optional[Chat]
-    u = update.effective_user  # type: Optional[User]
+    user = update.effective_user  # type: Optional[User]
     msg = update.effective_message  # type: Optional[Message]
-    user = resolve_user(u, msg.message_id, chat)
+
     bot, args = context.bot, context.args
     conn = connected(bot, update, chat, user.id, need_admin=True)
     if conn:
         chat = dispatcher.bot.getChat(conn)
         chat_id = conn
-        chat_name = dispatcher.bot.getChat(conn).title
+        chat.title = dispatcher.bot.getChat(conn).title
     else:
         if update.effective_message.chat.type == "private":
             send_message(
@@ -280,7 +252,7 @@ def blacklist_mode(update: Update, context: CallbackContext):
             return ""
         chat = update.effective_chat
         chat_id = update.effective_chat.id
-        chat_name = update.effective_message.chat.title
+        chat.title = update.effective_message.chat.title
 
     if args:
         if args[0].lower() in ["off", "nothing", "no"]:
@@ -327,7 +299,7 @@ def blacklist_mode(update: Update, context: CallbackContext):
             return
         if conn:
             text = "Blacklist sticker mode changed, users will be `{}` at *{}*!".format(
-                settypeblacklist, chat_name,
+                settypeblacklist, chat.title,
             )
         else:
             text = "Blacklist sticker mode changed, users will be `{}`!".format(
@@ -363,7 +335,7 @@ def blacklist_mode(update: Update, context: CallbackContext):
             settypeblacklist = f"temporarily muted for {getvalue}"
         if conn:
             text = "Blacklist sticker mode is currently set to *{}* in *{}*.".format(
-                settypeblacklist, chat_name,
+                settypeblacklist, chat.title,
             )
         else:
             text = "Blacklist sticker mode is currently set to *{}*.".format(
@@ -373,7 +345,7 @@ def blacklist_mode(update: Update, context: CallbackContext):
     return ""
 
 
-@user_not_admin
+@user_not_admin_check
 def del_blackliststicker(update: Update, context: CallbackContext):
     bot = context.bot
     chat = update.effective_chat  # type: Optional[Chat]
@@ -425,8 +397,7 @@ def del_blackliststicker(update: Update, context: CallbackContext):
                     return
                 elif getmode == 4:
                     message.delete()
-                    res = chat.unban_member(update.effective_user.id)
-                    if res:
+                    if res := chat.unban_member(update.effective_user.id):
                         bot.sendMessage(
                             chat.id,
                             "{} kicked because using '{}' which in blacklist stickers".format(
