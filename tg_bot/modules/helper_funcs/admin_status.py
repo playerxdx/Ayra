@@ -7,7 +7,7 @@ from typing import Optional
 from threading import RLock
 
 from telegram import Chat, Update, ChatMember
-from telegram.ext import CallbackContext as Ctx
+from telegram.ext import CallbackContext as Ctx, CallbackQueryHandler as CBHandler
 
 from tg_bot import dispatcher
 
@@ -21,6 +21,7 @@ from .admin_status_helpers import (
 	anon_reply_text as art,
 	anon_callbacks as a_cb,
 	user_is_not_admin_errmsg as u_na_errmsg,
+	edit_anon_msg as eam,
 )
 
 
@@ -139,7 +140,7 @@ def user_admin_check(permission: AdminPerms = None, allow_mods: bool = False, no
 
 			if update.effective_message.sender_chat:  # anonymous sender
 				# callback contains chat_id, message_id, and the required perm
-				callback_id = f'AnonCB/{message.chat.id}/{message.message_id}/{permission.value if permission else "None"}'
+				callback_id = f'anonCB/{message.chat.id}/{message.message_id}/{permission.value if permission else "None"}'
 				# store the function to be called in a (chat_id, message_id) tuple
 				# stored data will be (update, context), func, callback message_id
 				a_cb[(message.chat.id, message.message_id)] = (
@@ -180,3 +181,37 @@ def user_not_admin_check(func):
 		elif not user_is_admin(update, user.id, channels = True):
 			return func(update, context, *args, **kwargs)
 	return wrapped
+
+
+def perm_callback_check(upd: Update, _: Ctx):
+	callback = upd.callback_query
+	chat_id = int(callback.data.split('/')[1])
+	message_id = int(callback.data.split('/')[2])
+	perm = callback.data.split('/')[3]
+	user_id = callback.from_user.id
+	msg = upd.effective_message
+
+	mem = user_is_admin(upd, user_id, perm = perm if perm != 'None' else None)
+
+	if not mem:  # not admin or doesn't have the required perm
+		eam(msg,
+			"You need to be an admin to perform this action!"
+			if not perm == 'None'
+			else f"You lack the permission: `{perm}`!")
+		return
+
+	try:
+		cb = a_cb.pop((chat_id, message_id), None)
+	except KeyError:
+		eam(msg, "This message is no longer valid.")
+		return
+
+	msg.delete()
+
+	# update the `Update` and `CallbackContext` attributes by the correct values, so they can be used properly
+	setattr(cb[0][0], "_effective_user", upd.effective_user)
+	setattr(cb[0][0], "_effective_message", cb[2][0])
+
+	return cb[1](cb[0][0], cb[0][1])  # return func(update, context)
+
+dispatcher.add_handler(CBHandler(perm_callback_check, pattern = "anonCB", run_async=True))
