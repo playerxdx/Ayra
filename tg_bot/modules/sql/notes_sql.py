@@ -12,8 +12,6 @@ class Notes(BASE):
     name = Column(UnicodeText, primary_key=True)
     value = Column(UnicodeText, nullable=False)
     file = Column(UnicodeText)
-    is_reply = Column(Boolean, default=False)
-    has_buttons = Column(Boolean, default=False)
     msgtype = Column(Integer, default=Types.BUTTON_TEXT.value)
 
     def __init__(self, chat_id, name, value, msgtype, file=None):

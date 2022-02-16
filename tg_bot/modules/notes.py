@@ -1,16 +1,32 @@
-import re, ast, random
-from io import BytesIO
-from typing import Optional
-from tg_bot.modules.log_channel import loggable
+import re
+import ast
+import random
 import html
 
+from io import BytesIO
+from typing import Optional
+
+from .. import log, dispatcher, SUDO_USERS, spamcheck
+from .log_channel import loggable
+from .helper_funcs.parsing import revertMd2HTML
+from .helper_funcs.chat_status import connection_status
+from .helper_funcs.misc import build_keyboard
+from .helper_funcs.parsing import get_data
+from .helper_funcs.handlers import MessageHandlerChecker
+from .helper_funcs.string_handling import escape_invalid_curly_brackets
+from .helper_funcs.decorators import kigcmd, kigmsg, kigcallback
+from .helper_funcs.admin_status import (
+    user_admin_check,
+    bot_admin_check,
+    AdminPerms,
+    get_bot_member,
+    bot_is_admin,
+    user_is_admin,
+    user_not_admin_check,
+)
+
 import tg_bot.modules.sql.notes_sql as sql
-from tg_bot import log, dispatcher, SUDO_USERS, spamcheck
-from tg_bot.modules.helper_funcs.chat_status import is_user_admin, user_admin, connection_status, user_mod
-from tg_bot.modules.helper_funcs.misc import build_keyboard, revert_buttons
-from tg_bot.modules.helper_funcs.msg_types import get_note_type
-from tg_bot.modules.helper_funcs.handlers import MessageHandlerChecker
-from tg_bot.modules.helper_funcs.string_handling import escape_invalid_curly_brackets
+
 from telegram import (
     MAX_MESSAGE_LENGTH,
     InlineKeyboardMarkup,
@@ -20,15 +36,12 @@ from telegram import (
     InlineKeyboardButton,
 )
 from telegram.error import BadRequest
-from telegram.utils.helpers import escape_markdown, mention_markdown, mention_html
+from telegram.utils.helpers import mention_html
 from telegram.ext import (
     CallbackContext,
     Filters,
 )
 
-from tg_bot.modules.helper_funcs.decorators import kigcmd, kigmsg, kigcallback
-
-from ..modules.helper_funcs.anonymous import user_admin as u_admin, AdminPerms, resolve_user as res_user, UserClass
 
 JOIN_LOGGER = None
 FILE_MATCHER = re.compile(r"^###file_id(!photo)?###:(.*?)(?:\s|$)")
@@ -40,6 +53,7 @@ MYAUDIO_MATCHER = re.compile(r"^###audio(!photo)?###:")
 MYVOICE_MATCHER = re.compile(r"^###voice(!photo)?###:")
 MYVIDEO_MATCHER = re.compile(r"^###video(!photo)?###:")
 MYVIDEONOTE_MATCHER = re.compile(r"^###video_note(!photo)?###:")
+
 
 ENUM_FUNC_MAP = {
     sql.Types.TEXT.value: dispatcher.bot.send_message,
@@ -57,7 +71,6 @@ ENUM_FUNC_MAP = {
 def get(update: Update, context: CallbackContext, notename: str, show_none: bool = True, no_format: bool = False):
     # sourcery no-metrics
     bot = context.bot
-    chat = update.effective_message.chat
     chat_id = update.effective_message.chat.id
     note_chat_id = update.effective_chat.id
     note = sql.get_note(note_chat_id, notename)
@@ -117,45 +130,48 @@ def get(update: Update, context: CallbackContext, notename: str, show_none: bool
                 "preview",
                 "protect",
             ]
-            valid_format = escape_invalid_curly_brackets( # replace the curly brackets with their non escaped version because we will format them
-                note.value.replace("\\{first\\}", '{first}').replace("\\{last\\}", '{last}').replace("\\{fullname\\}", '{fullname}').replace("\\{username\\}", '{username}').replace("\\{id\\}", '{id}').replace("\\{chatname\\}", '{chatname}').replace("\\{mention\\}", '{mention}').replace("\\{user\\}", '{user}').replace("\\{admin\\}", '{admin}').replace("\\{preview\\}", '{preview}').replace("\\{protect\\}", '{protect}')
-                , VALID_NOTE_FORMATTERS, # this is a terrible way, i need to fix this
-            )
-            if valid_format:
+            # replace the curly brackets with their non escaped version because we will format them
+            if valid_format := escape_invalid_curly_brackets(
+                note.value, VALID_NOTE_FORMATTERS
+            ):
                 if not no_format and "%%%" in valid_format:
                     split = valid_format.split("%%%")
                     text = random.choice(split) if all(split) else valid_format
                 else:
                     text = valid_format
-                if "{admin}" in text and is_user_admin(update, user):
+                if "{admin}" in text and user_is_admin(update, user.id):
                     return
-                if "{user}" in text and not is_user_admin(update, user):
+                if "{user}" in text and not user_is_admin(update, user.id):
                     return
                 if "{preview}" in text:
                     preview = False
                 if "{protect}" in text:
                     protect = True
                 text = text.format(
-                    first=escape_markdown(message.from_user.first_name),
-                    last=escape_markdown(
-                        message.from_user.last_name or message.from_user.first_name,
+                    first=html.escape(message.from_user.first_name),
+                    last=html.escape(
+                        message.from_user.last_name
+                        or message.from_user.first_name,
                     ),
-                    fullname=escape_markdown(
+                    fullname=html.escape(
                         " ".join(
-                            [message.from_user.first_name, message.from_user.last_name]
-                            if message.from_user.last_name
-                            else [message.from_user.first_name],
+                            [
+                                message.from_user.first_name,
+                                message.from_user.last_name or "",
+                            ]
                         ),
                     ),
-                    username="@" + message.from_user.username
+                    username=f'@{message.from_user.username}'
                     if message.from_user.username
-                    else mention_markdown(
-                        message.from_user.id, message.from_user.first_name,
+                    else mention_html(
+                        message.from_user.id,
+                        message.from_user.first_name,
                     ),
-                    mention=mention_markdown(
-                        message.from_user.id, message.from_user.first_name,
+                    mention=mention_html(
+                        message.from_user.id,
+                        message.from_user.first_name,
                     ),
-                    chatname=escape_markdown(
+                    chatname=html.escape(
                         message.chat.title
                         if message.chat.type != "private"
                         else message.from_user.first_name,
@@ -166,16 +182,16 @@ def get(update: Update, context: CallbackContext, notename: str, show_none: bool
                     preview="",
                     protect="",
                 )
+
             else:
                 text = ""
 
             keyb = []
-            parseMode = ParseMode.MARKDOWN_V2
+            parseMode = ParseMode.HTML
             buttons = sql.get_buttons(note_chat_id, notename)
             if no_format:
-                parseMode = None # need to fix this too
-                text = text.replace("\*", "*").replace("\[", "[").replace("\]", "]").replace("\(", "(").replace("\)", ")").replace("\+", "+").replace("\|", "|").replace("\{", "{").replace("\}", "}").replace("\.", ".").replace("\-", "-").replace("\'", "'").replace("\_", "_").replace("\~", "~").replace("\`", "`").replace("\>", ">").replace("\#", "#").replace("\-", "-").replace("\=", "=").replace("\!", "!").replace("\\\\", "\\")
-                text += revert_buttons(buttons)
+                parseMode = ParseMode.HTML
+                text = revertMd2HTML(text, buttons)
             else:
                 keyb = build_keyboard(buttons)
 
@@ -225,46 +241,15 @@ def get(update: Update, context: CallbackContext, notename: str, show_none: bool
                     )
                     sql.rm_note(chat_id, notename)
                 else:
-                    
 
-                    try: # untill i fix it just use markdown v1 
-                        text = text.replace("\[", "[").replace("\]", "]").replace("\(", "(").replace("\)", ")").replace("\+", "+").replace("\|", "|").replace("\{", "{").replace("\}", "}").replace("\.", ".").replace("\-", "-").replace("\'", "'").replace("\~", "~").replace("\>", ">").replace("\#", "#").replace("\-", "-").replace("\=", "=").replace("\!", "!").replace("\\\\", "\\")
-                        if note.msgtype in (sql.Types.BUTTON_TEXT, sql.Types.TEXT):
-                            bot.send_message(
-                                chat_id,
-                                text,
-                                reply_to_message_id=reply_id,
-                                parse_mode=ParseMode.MARKDOWN,
-                                reply_markup=keyboard,
-                                disable_web_page_preview=bool(preview),
-                                protect_content=bool(protect)
-                            )
-                        elif ENUM_FUNC_MAP[note.msgtype] == dispatcher.bot.send_sticker:
-                            ENUM_FUNC_MAP[note.msgtype](
-                                chat_id,
-                                note.file,
-                                reply_to_message_id=reply_id,
-                                reply_markup=keyboard,
-                            )
-                        else:
-                            ENUM_FUNC_MAP[note.msgtype](
-                                chat_id,
-                                note.file,
-                                caption=text,
-                                reply_to_message_id=reply_id,
-                                parse_mode=ParseMode.MARKDOWN,
-                                reply_markup=keyboard,
-                                protect_content=bool(protect)
-                            )
-                    except:
-                        
-                        message.reply_text(
-                            "This note could not be sent, as it is incorrectly formatted. Ask in @TheBotsSupport if you can't figure out why!"
-                        )
-                        log.exception(
-                            "Could not parse message #%s in chat %s", notename, str(note_chat_id)
-                        )
-                        log.warning("Message was: %s", str(note.value))
+                    message.reply_text(
+                        "This note could not be sent, as it is incorrectly formatted. "
+                        "Try getting the noformat version or ask in @TheBotsSupport if you can't figure out why!"
+                    )
+                    log.exception(
+                        "Could not parse message #%s in chat %s", notename, str(note_chat_id)
+                    )
+                    log.warning("Message was: %s", str(note.value))
         return
     elif show_none:
         message.reply_text("This note doesn't exist")
@@ -274,25 +259,25 @@ def get(update: Update, context: CallbackContext, notename: str, show_none: bool
 @spamcheck
 @connection_status
 def cmd_get(update: Update, context: CallbackContext):
-    bot, args = context.bot, context.args
-    if len(args) >= 2 and args[1].lower() == ("noformat" or "raw"):
-        get(update, context, args[0].lower(), show_none=True, no_format=True)
+    args = context.args
+    if len(args) >= 2:
+        get(update, context, args[0].lower(), show_none=True, no_format=bool(args[1].lower() in ["raw", "noformat"]))
     elif len(args) >= 1:
         get(update, context, args[0].lower(), show_none=True)
     else:
         update.effective_message.reply_text("Specify a note name!")
 
 
-
 @kigmsg((Filters.regex(r"^#[^\s]+")), group=-14, friendly='get')
 @spamcheck
 @connection_status
 def hash_get(update: Update, context: CallbackContext):
-    message = update.effective_message.text
-    fst_word = message.split()[0]
-    no_hash = fst_word[1:].lower()
-    get(update, context, no_hash, show_none=False)
+    msg = update.effective_message.text.split()
+    no_hash = msg[0][1:].lower()
+    if len(msg) >= 2:
+        return get(update, context, no_hash, show_none=False, no_format=msg[1].lower() in ["raw", "noformat"])
 
+    get(update, context, no_hash, show_none=False)
 
 
 @kigmsg((Filters.regex(r"^[/!>]\d+$")), group=-16, friendly='get')
@@ -310,32 +295,33 @@ def slash_get(update: Update, context: CallbackContext):
     except IndexError:
         update.effective_message.reply_text("Wrong Note ID!")
 
+
 @kigcmd(command='save')
 @spamcheck
 @connection_status
-@u_admin(UserClass.MOD, AdminPerms.CAN_CHANGE_INFO)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO, allow_mods = True)
 @loggable
-def save(update: Update, context: CallbackContext) -> str:
+def save(update: Update, _: CallbackContext) -> Optional[str]:
     chat_id = update.effective_chat.id
     msg = update.effective_message  # type: Optional[Message]
     chat = update.effective_chat
-    u = update.effective_user
+    user = update.effective_user
     message = update.effective_message
-    user = res_user(u, message.message_id, chat)
+
 
     m = msg.text.split(' ', 1)
     if len(m) == 1:
         msg.reply_text("Provide something to save.")
         return
-    note_name, text, data_type, content, buttons = get_note_type(msg)
+    note_name, text, data_type, content, buttons = get_data(msg)
     note_name = note_name.lower()
-    if data_type is None:
-        msg.reply_text("Dude, there's no note")
+    if text == "":
+        msg.reply_text("Should i save... nothing?")
         return
 
     sql.add_note_to_db(
         chat_id, note_name, text, data_type, buttons=buttons, file=content
-    ) 
+    )
 
     logmsg = (
         f"<b>{html.escape(chat.title)}:</b>\n"
@@ -345,7 +331,7 @@ def save(update: Update, context: CallbackContext) -> str:
     )
 
     msg.reply_text(
-        f"Added Note `{note_name}`!",
+        f"Saved Note `{note_name}`!",
         parse_mode=ParseMode.MARKDOWN,
     )
 
@@ -358,26 +344,27 @@ def save(update: Update, context: CallbackContext) -> str:
         )
     return logmsg
 
+
 @kigcmd(command='clear')
 @spamcheck
 @connection_status
-@u_admin(UserClass.MOD, AdminPerms.CAN_CHANGE_INFO)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO, allow_mods = True)
 @loggable
 def clear(update: Update, context: CallbackContext) -> str:
     args = context.args
     chat = update.effective_chat
     chat_id = chat.id
-    u = update.effective_user
+    user = update.effective_user
 
     message = update.effective_message
 
-    user = res_user(u, message.message_id, chat)
+
 
     if len(args) >= 1:
         notename = args[0].lower()
 
         if sql.rm_note(chat_id, notename):
-            update.effective_message.reply_text("Successfully removed note.")
+            update.effective_message.reply_text(f"Cleared note '{notename}'.")
             logmsg = (
                     f"<b>{html.escape(chat.title)}:</b>\n"
                     f"#CLEARNOTE\n"
@@ -393,9 +380,9 @@ def clear(update: Update, context: CallbackContext) -> str:
         return ''
 
 
-@kigcmd(command='removeallnotes')
+@kigcmd(command=['removeallnotes', 'clearall'])
 @spamcheck
-def clearall(update: Update, context: CallbackContext):
+def clearall(update: Update, _: CallbackContext):
     chat = update.effective_chat
     user = update.effective_user
     member = chat.get_member(user.id)
@@ -423,7 +410,7 @@ def clearall(update: Update, context: CallbackContext):
 
 @kigcallback(pattern=r"notes_.*")
 @loggable
-def clearall_btn(update: Update, context: CallbackContext) -> str:
+def clearall_btn(update: Update, _: CallbackContext) -> str:
     query = update.callback_query
     chat = update.effective_chat
     message = update.effective_message
@@ -470,7 +457,7 @@ def clearall_btn(update: Update, context: CallbackContext) -> str:
 @kigcmd(command=["notes", "saved"])
 @spamcheck
 @connection_status
-def list_notes(update: Update, context: CallbackContext):
+def list_notes(update: Update, _: CallbackContext):
     chat_id = update.effective_chat.id
     note_list = sql.get_all_chat_notes(chat_id)
     notes = len(note_list) + 1
@@ -487,7 +474,7 @@ def list_notes(update: Update, context: CallbackContext):
     if not note_list:
         update.effective_message.reply_text("No notes in this chat!")
 
-    elif len(msg) != 0:
+    elif msg != '':
         update.effective_message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
 
 
@@ -506,21 +493,18 @@ def __import_data__(chat_id, data):  # sourcery no-metrics
 
         if match:
             failures.append(notename)
-            notedata = notedata[match.end() :].strip()
-            if notedata:
+            if notedata := notedata[match.end():].strip():
                 sql.add_note_to_db(chat_id, notename[1:], notedata, sql.Types.TEXT)
         elif matchsticker:
-            content = notedata[matchsticker.end() :].strip()
-            if content:
+            if content := notedata[matchsticker.end():].strip():
                 sql.add_note_to_db(
                     chat_id, notename[1:], notedata, sql.Types.STICKER, file=content
                 )
         elif matchbtn:
-            parse = notedata[matchbtn.end() :].strip()
+            parse = notedata[matchbtn.end():].strip()
             notedata = parse.split("<###button###>")[0]
             buttons = parse.split("<###button###>")[1]
-            buttons = ast.literal_eval(buttons)
-            if buttons:
+            if buttons := ast.literal_eval(buttons):
                 sql.add_note_to_db(
                     chat_id,
                     notename[1:],
@@ -529,56 +513,50 @@ def __import_data__(chat_id, data):  # sourcery no-metrics
                     buttons=buttons,
                 )
         elif matchfile:
-            file = notedata[matchfile.end() :].strip()
+            file = notedata[matchfile.end():].strip()
             file = file.split("<###TYPESPLIT###>")
             notedata = file[1]
-            content = file[0]
-            if content:
+            if content := file[0]:
                 sql.add_note_to_db(
                     chat_id, notename[1:], notedata, sql.Types.DOCUMENT, file=content
                 )
         elif matchphoto:
-            photo = notedata[matchphoto.end() :].strip()
+            photo = notedata[matchphoto.end():].strip()
             photo = photo.split("<###TYPESPLIT###>")
             notedata = photo[1]
-            content = photo[0]
-            if content:
+            if content := photo[0]:
                 sql.add_note_to_db(
                     chat_id, notename[1:], notedata, sql.Types.PHOTO, file=content
                 )
         elif matchaudio:
-            audio = notedata[matchaudio.end() :].strip()
+            audio = notedata[matchaudio.end():].strip()
             audio = audio.split("<###TYPESPLIT###>")
             notedata = audio[1]
-            content = audio[0]
-            if content:
+            if content := audio[0]:
                 sql.add_note_to_db(
                     chat_id, notename[1:], notedata, sql.Types.AUDIO, file=content
                 )
         elif matchvoice:
-            voice = notedata[matchvoice.end() :].strip()
+            voice = notedata[matchvoice.end():].strip()
             voice = voice.split("<###TYPESPLIT###>")
             notedata = voice[1]
-            content = voice[0]
-            if content:
+            if content := voice[0]:
                 sql.add_note_to_db(
                     chat_id, notename[1:], notedata, sql.Types.VOICE, file=content
                 )
         elif matchvideo:
-            video = notedata[matchvideo.end() :].strip()
+            video = notedata[matchvideo.end():].strip()
             video = video.split("<###TYPESPLIT###>")
             notedata = video[1]
-            content = video[0]
-            if content:
+            if content := video[0]:
                 sql.add_note_to_db(
                     chat_id, notename[1:], notedata, sql.Types.VIDEO, file=content
                 )
         elif matchvn:
-            video_note = notedata[matchvn.end() :].strip()
+            video_note = notedata[matchvn.end():].strip()
             video_note = video_note.split("<###TYPESPLIT###>")
             notedata = video_note[1]
-            content = video_note[0]
-            if content:
+            if content := video_note[0]:
                 sql.add_note_to_db(
                     chat_id, notename[1:], notedata, sql.Types.VIDEO_NOTE, file=content
                 )
@@ -606,11 +584,13 @@ def __migrate__(old_chat_id, new_chat_id):
     sql.migrate_chat(old_chat_id, new_chat_id)
 
 
-def __chat_settings__(chat_id, user_id):
+def __chat_settings__(chat_id, _):
     notes = sql.get_all_chat_notes(chat_id)
     return f"There are `{len(notes)}` notes in this chat."
 
-from tg_bot.modules.language import gs
+
+from .language import gs
+
 
 def get_help(chat):
     return gs(chat, "notes_help")
