@@ -6,7 +6,6 @@ from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 
 from tg_bot import dispatcher, spamcheck
 import tg_bot.modules.sql.language_sql as sql
-from tg_bot.modules.helper_funcs.chat_status import user_admin, user_admin_no_reply
 from tg_bot.langs import get_string, get_languages, get_language
 
 
@@ -29,8 +28,12 @@ def gs(chat_id: Union[int, str], string: str) -> str:
     lang = sql.get_chat_lang(chat_id)
     return get_string(lang, string)
 
+
+from .helper_funcs.admin_status import user_admin_check, AdminPerms
+
+
 @spamcheck
-@user_admin
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO)
 def set_lang(update: Update, _) -> None:
     chat = update.effective_chat
     msg = update.effective_message
@@ -55,7 +58,7 @@ def set_lang(update: Update, _) -> None:
     msg.reply_text(msg_text, reply_markup=InlineKeyboardMarkup(keyb))
 
 
-@user_admin_no_reply
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO, noreply=True)
 def lang_button(update: Update, _) -> None:
     query = update.callback_query
     chat = update.effective_chat

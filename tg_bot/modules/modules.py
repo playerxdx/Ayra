@@ -12,10 +12,10 @@ from tg_bot.__main__ import (
     USER_INFO,
     USER_SETTINGS,
 )
-from tg_bot.modules.helper_funcs.chat_status import dev_plus, sudo_plus
+from .helper_funcs.chat_status import dev_plus, sudo_plus
 from telegram import ParseMode, Update
 from telegram.ext import CallbackContext
-from tg_bot.modules.helper_funcs.decorators import kigcmd
+from .helper_funcs.decorators import kigcmd
 
 
 @kigcmd(command='load')

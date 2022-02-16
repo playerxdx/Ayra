@@ -1,4 +1,4 @@
-# from tg_bot.modules.language import gs
+# from .language import gs
 
 # def get_help(chat):
 #     return gs(chat, "lockgroup_help")

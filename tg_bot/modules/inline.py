@@ -24,8 +24,8 @@ from tg_bot import (
     SYS_ADMIN,
     sw, log
 )
-from tg_bot.modules.helper_funcs.misc import article
-from tg_bot.modules.helper_funcs.decorators import kiginline
+from .helper_funcs.misc import article
+from .helper_funcs.decorators import kiginline
 from tg_bot.__main__ import USER_INFO
 
 def remove_prefix(text, prefix):
@@ -152,13 +152,13 @@ def inlineinfo(query: str, update: Update, context: CallbackContext) -> None:
 
     text += "\n"
     try:
-        from tg_bot.modules.antispam import __user_info__ as u
+        from .antispam import __user_info__ as u
         user_info = u(user.id)
         text += user_info
     except:
         pass
     try:
-        from tg_bot.modules.blacklistusers import __user_info__ as bl
+        from .blacklistusers import __user_info__ as bl
         user_info = bl(user.id)
         text += user_info
     except:

@@ -9,9 +9,11 @@ from telegram.inline.inlinekeyboardbutton import InlineKeyboardButton
 from telegram.inline.inlinekeyboardmarkup import InlineKeyboardMarkup
 from telegram.utils.helpers import mention_html
 
+from .helper_funcs.admin_status import bot_admin_check, user_admin_check
+from .helper_funcs.admin_status_helpers import AdminPerms
+
 from ..import dispatcher
 from .helper_funcs.decorators import kigcallback
-from .helper_funcs.chat_status import user_can_restrict_no_reply, bot_admin
 
 from .log_channel import loggable
 
@@ -42,8 +44,8 @@ def chat_join_req(upd: Update, ctx: CallbackContext):
 
 
 @kigcallback(pattern=r"cb_approve=")
-@user_can_restrict_no_reply
-@bot_admin
+@user_admin_check(AdminPerms.CAN_INVITE_USERS, noreply=True)
+@bot_admin_check(AdminPerms.CAN_INVITE_USERS)
 @loggable
 def approve_joinreq(update: Update, context: CallbackContext) -> str:
     bot = context.bot
@@ -72,8 +74,8 @@ def approve_joinreq(update: Update, context: CallbackContext) -> str:
         pass
 
 @kigcallback(pattern=r"cb_decline=")
-@user_can_restrict_no_reply
-@bot_admin
+@user_admin_check(AdminPerms.CAN_INVITE_USERS, noreply=True)
+@bot_admin_check(AdminPerms.CAN_INVITE_USERS)
 @loggable
 def decline_joinreq(update: Update, context: CallbackContext) -> str:
     bot = context.bot

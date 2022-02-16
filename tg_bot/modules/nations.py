@@ -17,11 +17,11 @@ from tg_bot import (
     OWNER_ID,
     SYS_ADMIN,
 )
-from tg_bot.modules.helper_funcs.chat_status import whitelist_plus, dev_plus, sudo_plus
-from tg_bot.modules.helper_funcs.extraction import extract_user
-from tg_bot.modules.log_channel import gloggable
-from tg_bot.modules.sql import nation_sql as sql
-from tg_bot.modules.helper_funcs.decorators import kigcmd
+from .helper_funcs.chat_status import whitelist_plus, dev_plus, sudo_plus
+from .helper_funcs.extraction import extract_user
+from .log_channel import gloggable
+from .sql import nation_sql as sql
+from .helper_funcs.decorators import kigcmd
 
 def check_user_id(user_id: int, context: CallbackContext) -> Optional[str]:
     bot = context.bot
@@ -46,7 +46,7 @@ def addsudo(update: Update, context: CallbackContext) -> str:
     user_member = bot.getChat(user_id)
     rt = ""
 
-    reply = check_user_id(user_id, bot)
+    reply = check_user_id(user_id, context)
     if reply:
         message.reply_text(reply)
         return ""
@@ -105,7 +105,7 @@ def addsupport(
     user_member = bot.getChat(user_id)
     rt = ""
 
-    reply = check_user_id(user_id, bot)
+    reply = check_user_id(user_id, context)
     if reply:
         message.reply_text(reply)
         return ""
@@ -157,7 +157,7 @@ def addwhitelist(update: Update, context: CallbackContext) -> str:
     user_member = bot.getChat(user_id)
     rt = ""
 
-    reply = check_user_id(user_id, bot)
+    reply = check_user_id(user_id, context)
     if reply:
         message.reply_text(reply)
         return ""
@@ -211,7 +211,7 @@ def addmod(update: Update, context: CallbackContext) -> str:
     user_member = bot.getChat(user_id)
     rt = ""
 
-    reply = check_user_id(user_id, bot)
+    reply = check_user_id(user_id, context)
     if reply:
         message.reply_text(reply)
         return ""
@@ -262,7 +262,7 @@ def removesudo(update: Update, context: CallbackContext) -> str:
     user_id = extract_user(message, args)
     user_member = bot.getChat(user_id)
 
-    reply = check_user_id(user_id, bot)
+    reply = check_user_id(user_id, context)
     if reply:
         message.reply_text(reply)
         return ""
@@ -299,7 +299,7 @@ def removesupport(update: Update, context: CallbackContext) -> str:
     user_id = extract_user(message, args)
     user_member = bot.getChat(user_id)
 
-    reply = check_user_id(user_id, bot)
+    reply = check_user_id(user_id, context)
     if reply:
         message.reply_text(reply)
         return ""
@@ -336,7 +336,7 @@ def removewhitelist(update: Update, context: CallbackContext) -> str:
     user_id = extract_user(message, args)
     user_member = bot.getChat(user_id)
 
-    reply = check_user_id(user_id, bot)
+    reply = check_user_id(user_id, context)
     if reply:
         message.reply_text(reply)
         return ""
@@ -372,7 +372,7 @@ def removemod(update: Update, context: CallbackContext) -> str:
     user_id = extract_user(message, args)
     user_member = bot.getChat(user_id)
 
-    reply = check_user_id(user_id, bot)
+    reply = check_user_id(user_id, context)
     if reply:
         message.reply_text(reply)
         return ""
@@ -509,7 +509,7 @@ def syslist(update: Update, context: CallbackContext):
     update.effective_message.reply_text(reply, parse_mode=ParseMode.HTML)
 
 
-# from tg_bot.modules.language import gs
+# from .language import gs
 
 # def get_help(chat):
 #     return gs(chat, "nation_help")

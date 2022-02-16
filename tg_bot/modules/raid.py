@@ -9,12 +9,20 @@ from telegram.ext import CallbackContext
 from telegram.utils.helpers import mention_html
 
 from .log_channel import loggable
-from .helper_funcs.anonymous import user_admin as u_admin, AdminPerms, resolve_user as res_user, UserClass
-from .helper_funcs.chat_status import bot_admin, connection_status, user_admin_no_reply
+
+from .helper_funcs.chat_status import connection_status
 from .helper_funcs.decorators import kigcmd, kigcallback
 from .cron_jobs import j
 from ..import spamcheck, log
-
+from .helper_funcs.admin_status import (
+    user_admin_check,
+    bot_admin_check,
+    AdminPerms,
+    get_bot_member,
+    bot_is_admin,
+    user_is_admin,
+    user_not_admin_check,
+)
 import tg_bot.modules.sql.welcome_sql as sql
 
 # store job id in a dict to be able to cancel them later
@@ -34,16 +42,15 @@ def get_readable_time(time: int) -> str:
 
 @kigcmd(command="raid", pass_args=True)
 @spamcheck
-@bot_admin
 @connection_status
+@bot_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS)
+@user_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS, allow_mods = True)
 @loggable
-@u_admin(UserClass.MOD, AdminPerms.CAN_CHANGE_INFO)
 def setRaid(update: Update, context: CallbackContext) -> Optional[str]:
     args = context.args
     chat = update.effective_chat
     msg = update.effective_message
-    u = update.effective_user
-    user = res_user(u, msg.message_id, chat)
+    user = update.effective_user
     if chat.type == "private":
         context.bot.sendMessage(chat.id, "This command is not available in PMs.")
         return
@@ -97,7 +104,7 @@ def setRaid(update: Update, context: CallbackContext) -> Optional[str]:
 
 @kigcallback(pattern="enable_raid=")
 @connection_status
-@user_admin_no_reply
+@user_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS, allow_mods = True, noreply=True)
 @loggable
 def enable_raid_cb(update: Update, ctx: CallbackContext) -> Optional[str]:
     args = update.callback_query.data.replace("enable_raid=","").split("=")
@@ -130,7 +137,7 @@ def enable_raid_cb(update: Update, ctx: CallbackContext) -> Optional[str]:
 
 @kigcallback(pattern="disable_raid=")
 @connection_status
-@user_admin_no_reply
+@user_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS, allow_mods = True, noreply=True)
 @loggable
 def disable_raid_cb(update: Update, _: CallbackContext) -> Optional[str]:
     args = update.callback_query.data.replace("disable_raid=","").split("=")
@@ -155,7 +162,7 @@ def disable_raid_cb(update: Update, _: CallbackContext) -> Optional[str]:
 
 @kigcallback(pattern="cancel_raid=")
 @connection_status
-@user_admin_no_reply
+@user_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS, allow_mods = True, noreply=True)
 def disable_raid_cb(update: Update, _: CallbackContext):
     args = update.callback_query.data.split("=")
     what = args[0]
@@ -164,15 +171,16 @@ def disable_raid_cb(update: Update, _: CallbackContext):
 @kigcmd(command="raidtime")
 @spamcheck
 @connection_status
+@bot_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS)
+@user_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS, allow_mods = True)
 @loggable
-@u_admin(UserClass.MOD, AdminPerms.CAN_CHANGE_INFO)
 def raidtime(update: Update, context: CallbackContext) -> Optional[str]:
     what, time, acttime = sql.getRaidStatus(update.effective_chat.id)
     args = context.args
     msg = update.effective_message
-    u = update.effective_user
+    user = update.effective_user
     chat = update.effective_chat
-    user = res_user(u, msg.message_id, chat)
+
     if not args:
         msg.reply_text(f"Raid mode is currently set to {get_readable_time(time)}\nWhen toggled, the raid mode will last for {get_readable_time(time)} then turn off automatically", parse_mode=ParseMode.HTML)
         return
@@ -195,15 +203,16 @@ def raidtime(update: Update, context: CallbackContext) -> Optional[str]:
 @kigcmd(command="raidactiontime", pass_args=True)
 @spamcheck
 @connection_status
-@u_admin(UserClass.MOD, AdminPerms.CAN_CHANGE_INFO)
+@bot_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS)
+@user_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS, allow_mods = True)
 @loggable
 def raidtime(update: Update, context: CallbackContext) -> Optional[str]:
     what, t, time = sql.getRaidStatus(update.effective_chat.id)
     args = context.args
     msg = update.effective_message
-    u = update.effective_user
+    user = update.effective_user
     chat = update.effective_chat
-    user = res_user(u, msg.message_id, chat)
+
     if not args:
         msg.reply_text(f"Raid action time is currently set to {get_readable_time(time)}\nWhen toggled, the members that join will be temp banned for {get_readable_time(time)}", parse_mode=ParseMode.HTML)
         return

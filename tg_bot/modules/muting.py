@@ -16,24 +16,26 @@ from tg_bot import (
     OWNER_ID,
     WHITELIST_USERS,
 )
-from tg_bot.modules.helper_funcs.chat_status import (
-    bot_admin,
-    can_restrict,
-    connection_status,
-    is_user_ban_protected,
-    user_can_restrict_no_reply,
-)
-from tg_bot.modules.helper_funcs.extraction import extract_user_and_text
-from tg_bot.modules.helper_funcs.string_handling import extract_time
-from tg_bot.modules.log_channel import loggable
+from .helper_funcs.chat_status import connection_status
+from .helper_funcs.extraction import extract_user_and_text
+from .helper_funcs.string_handling import extract_time
+from .log_channel import loggable
 from telegram import Bot, Chat, ChatPermissions, ParseMode, Update, replymarkup
 from telegram.error import BadRequest
 from telegram.ext import CallbackContext
 from telegram.utils.helpers import mention_html
-from tg_bot.modules.language import gs
-from tg_bot.modules.helper_funcs.decorators import kigcmd, kigcallback
+from .language import gs
+from .helper_funcs.decorators import kigcmd, kigcallback
 
-from ..modules.helper_funcs.anonymous import user_admin as u_admin, AdminPerms, resolve_user as res_user, UserClass
+from .helper_funcs.admin_status import (
+    user_admin_check,
+    bot_admin_check,
+    AdminPerms,
+    get_bot_member,
+    bot_is_admin,
+    user_is_admin,
+    user_not_admin_check,
+)
 
 
 def check_user(user_id: int, bot: Bot, update: Update) -> Optional[str]:
@@ -50,7 +52,7 @@ def check_user(user_id: int, bot: Bot, update: Update) -> Optional[str]:
     if user_id == bot.id:
         return "I'm not gonna MUTE myself, How high are you?"
 
-    if is_user_ban_protected(update, user_id, member) and user_id not in DEV_USERS:
+    if user_is_admin(update, user_id) and user_id not in DEV_USERS:
         if user_id == OWNER_ID:
             return "I'd never ban my owner."
         elif user_id in DEV_USERS:
@@ -72,18 +74,17 @@ def check_user(user_id: int, bot: Bot, update: Update) -> Optional[str]:
 @kigcmd(command='mute')
 @spamcheck
 @connection_status
-@bot_admin
-@can_restrict
-@u_admin(UserClass.MOD, AdminPerms.CAN_RESTRICT_MEMBERS)
+@bot_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS)
+@user_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS, allow_mods = True)
 @loggable
 def mute(update: Update, context: CallbackContext) -> str:
     bot = context.bot
     args = context.args
 
     chat = update.effective_chat
-    u = update.effective_user
+    user = update.effective_user
     message = update.effective_message
-    user = res_user(u, message.message_id, chat)
+    user = update.effective_user
 
     user_id, reason = extract_user_and_text(message, args)
     reply = check_user(user_id, bot, update)
@@ -142,8 +143,8 @@ def mute(update: Update, context: CallbackContext) -> str:
 
 
 @kigcallback(pattern=r"cb_unmute")
-@user_can_restrict_no_reply
-@bot_admin
+@bot_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS)
+@user_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS, allow_mods = True, noreply=True)
 @loggable
 def button(update: Update, context: CallbackContext) -> str:
     query: Optional[CallbackQuery] = update.callback_query
@@ -203,16 +204,15 @@ def button(update: Update, context: CallbackContext) -> str:
 @kigcmd(command='unmute')
 @spamcheck
 @connection_status
-@bot_admin
-@can_restrict
-@u_admin(UserClass.MOD, AdminPerms.CAN_RESTRICT_MEMBERS)
+@bot_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS)
+@user_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS, allow_mods = True)
 @loggable
 def unmute(update: Update, context: CallbackContext) -> str:
     bot, args = context.bot, context.args
     chat = update.effective_chat
-    u = update.effective_user
+    user = update.effective_user
     message = update.effective_message
-    user = res_user(u, message.message_id, chat)
+    user = update.effective_user
 
     user_id, reason = extract_user_and_text(message, args)
     if not user_id:
@@ -273,16 +273,15 @@ def unmute(update: Update, context: CallbackContext) -> str:
 @kigcmd(command=['tmute', 'tempmute'])
 @spamcheck
 @connection_status
-@bot_admin
-@can_restrict
-@u_admin(UserClass.MOD, AdminPerms.CAN_RESTRICT_MEMBERS)
+@bot_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS)
+@user_admin_check(AdminPerms.CAN_RESTRICT_MEMBERS, allow_mods = True)
 @loggable
 def temp_mute(update: Update, context: CallbackContext) -> str:
     bot, args = context.bot, context.args
     chat = update.effective_chat
-    u = update.effective_user
+    user = update.effective_user
     message = update.effective_message
-    user = res_user(u, message.message_id, chat)
+    user = update.effective_user
 
     user_id, reason = extract_user_and_text(message, args)
     reply = check_user(user_id, bot, update)

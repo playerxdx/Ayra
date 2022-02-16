@@ -2,10 +2,10 @@ import time
 from asyncio import sleep
 from telethon import events
 from telethon.tl.types import ChannelParticipantsAdmins
-from tg_bot.modules.helper_funcs.decorators import register
-from tg_bot.modules.sql.clear_cmd_sql import get_clearcmd
+from .helper_funcs.decorators import register
+from .sql.clear_cmd_sql import get_clearcmd
 from tg_bot import BOT_ID, telethn
-from tg_bot.modules.helper_funcs.telethn.chatstatus import (
+from .helper_funcs.telethn.chatstatus import (
     can_delete_messages, user_can_purge, user_is_admin)
 from telethon.errors.rpcerrorlist import MessageDeleteForbiddenError
 
@@ -67,6 +67,11 @@ async def purge_messages(event):
 @register(pattern='(del|d)', groups_only=True, no_args=True)
 async def delete_messages(event):
 
+    # async for user in telethn.iter_participants(
+    #         event.chat_id, filter=ChannelParticipantsAdmins):
+    #     print(user)
+
+
     if event.from_id is None:
         return
 
@@ -82,11 +87,18 @@ async def delete_messages(event):
         return
 
     message = await event.get_reply_message()
-
+    # elif event.chat.admin_rights:
+    #     status = event.chat.admin_rights.delete_messages
+    #     return status
+                # if user_id == user.id:# and user_id.ChatAdminRights(delete_messages=True):
     if not message:
         await event.reply("Whadya want to delete?")
         return
-
+    # print(message.sender.id)
+    # print(BOT_ID)
+    # # print(event.sender_id.ChatAdminRights)
+    # print(event.chat.admin_rights)
+    # print(event.stringify())
     if not await can_delete_messages(message=event) and not int(message.sender.id) == int(BOT_ID):
         if event.chat.admin_rights is None:
             await event.reply("I'm not an admin, do you mind promoting me first?")
@@ -103,7 +115,7 @@ async def delete_messages(event):
         pass
 
 
-from tg_bot.modules.language import gs
+from .language import gs
 
 def get_help(chat):
     return gs(chat, "purge_help")
@@ -111,5 +123,12 @@ def get_help(chat):
 
 
 
+# PURGE_HANDLER = purge_messages, events.NewMessage(pattern="^[!/>]purge$")
+# DEL_HANDLER = delete_messages, events.NewMessage(pattern="^[!/>]del$")
+
+# telethn.add_event_handler(*PURGE_HANDLER)
+# telethn.add_event_handler(*DEL_HANDLER)
+
 __mod_name__ = "Purges"
 __command_list__ = ["del", "purge"]
+# __handlers__ = [PURGE_HANDLER, DEL_HANDLER]

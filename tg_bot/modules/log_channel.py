@@ -3,11 +3,19 @@ from functools import wraps
 from tg_bot import OWNER_ID, spamcheck
 
 from telegram.ext import CallbackContext
-from tg_bot.modules.helper_funcs.decorators import kigcmd, kigcallback
-from tg_bot.modules.helper_funcs.misc import is_module_loaded
-from tg_bot.modules.language import gs
+from .helper_funcs.decorators import kigcmd, kigcallback
+from .helper_funcs.misc import is_module_loaded
+from .language import gs
 from telegram.error import Unauthorized
-# from ..modules.helper_funcs.anonymous import user_admin as u_admin, AdminPerms, resolve_user as res_user, UserClass
+from .helper_funcs.admin_status import (
+    user_admin_check,
+    bot_admin_check,
+    AdminPerms,
+    get_bot_member,
+    bot_is_admin,
+    user_is_admin,
+    user_not_admin_check,
+)
 
 
 def get_help(chat):
@@ -22,9 +30,8 @@ if is_module_loaded(FILENAME):
     from telegram.utils.helpers import escape_markdown
 
     from tg_bot import GBAN_LOGS, log, dispatcher
-    from tg_bot.modules.helper_funcs.chat_status import user_admin, user_admin_no_reply
-    from tg_bot.modules.sql import log_channel_sql as sql
-    from tg_bot.modules.helper_funcs.anonymous import user_admin as u_admin, AdminPerms, resolve_user as res_user, UserClass
+    from .sql import log_channel_sql as sql
+ 
 
     def loggable(func):
         @wraps(func)
@@ -119,7 +126,7 @@ if is_module_loaded(FILENAME):
 
 
     @kigcmd(command='logchannel')
-    @user_admin
+    @user_admin_check(AdminPerms.CAN_CHANGE_INFO)
     @spamcheck
     def logging(update: Update, context: CallbackContext):
         bot = context.bot
@@ -140,7 +147,7 @@ if is_module_loaded(FILENAME):
 
 
     @kigcmd(command='setlog')
-    @user_admin
+    @user_admin_check(AdminPerms.CAN_CHANGE_INFO)
     @spamcheck
     def setlog(update: Update, context: CallbackContext):
         bot = context.bot
@@ -184,7 +191,7 @@ if is_module_loaded(FILENAME):
 
 
     @kigcmd(command='unsetlog')
-    @user_admin
+    @user_admin_check(AdminPerms.CAN_CHANGE_INFO)
     @spamcheck
     def unsetlog(update: Update, context: CallbackContext):
         bot = context.bot
@@ -243,13 +250,12 @@ else:
 
 
 @kigcmd("logsettings")
-@u_admin(UserClass.ADMIN, AdminPerms.CAN_CHANGE_INFO)
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO)
 def log_settings(update: Update, _: CallbackContext):
     chat = update.effective_chat
     chat_set = sql.get_chat_setting(chat_id=chat.id)
     message = update.effective_message
-    u = update.effective_user
-    user = res_user(u, message.message_id, chat)
+    user = update.effective_user
     if not chat_set:
         sql.set_chat_setting(setting=sql.LogChannelSettings(chat.id, True, True, True, True, True))
     btn = InlineKeyboardMarkup(
@@ -271,11 +277,11 @@ def log_settings(update: Update, _: CallbackContext):
     msg.reply_text("Toggle channel log settings", reply_markup=btn)
 
 
-from tg_bot.modules.sql import log_channel_sql as sql
+from .sql import log_channel_sql as sql
 
 
 @kigcallback(pattern=r"log_tog_.*")
-@user_admin_no_reply
+@user_admin_check(AdminPerms.CAN_CHANGE_INFO, noreply=True)
 def log_setting_callback(update: Update, context: CallbackContext):
     cb = update.callback_query
     user = cb.from_user

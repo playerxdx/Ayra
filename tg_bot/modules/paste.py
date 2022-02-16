@@ -1,7 +1,7 @@
 from .helper_funcs.misc import upload_text
 from telegram import Update
 from telegram.ext import CallbackContext
-from tg_bot.modules.helper_funcs.decorators import kigcmd
+from .helper_funcs.decorators import kigcmd
 from io import BytesIO
 from tg_bot import spamcheck
 

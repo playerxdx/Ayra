@@ -9,40 +9,39 @@ from telegram.utils.helpers import mention_html
 
 from tg_bot import SUDO_USERS, spamcheck, dispatcher
 
-from tg_bot.modules.helper_funcs.chat_status import (
-    bot_admin,
-    can_pin,
-    connection_status,
-    user_admin,
-    user_mod, is_user_mod,
-)
-from tg_bot.modules.log_channel import loggable
-from tg_bot.modules.language import gs
-from tg_bot.modules.helper_funcs.decorators import kigcmd, kigmsg, kigcallback
-from tg_bot.modules.helper_funcs.misc import get_message_type,\
+from .helper_funcs.chat_status import connection_status
+from .log_channel import loggable
+from .language import gs
+from .helper_funcs.decorators import kigcmd, kigmsg, kigcallback
+from .helper_funcs.misc import get_message_type,\
     build_keyboard_alternate
 from telegram.inline.inlinekeyboardmarkup import InlineKeyboardMarkup
-from tg_bot.modules.connection import connected
+from .connection import connected
 from telegram.inline.inlinekeyboardbutton import InlineKeyboardButton
 from telegram.ext.callbackqueryhandler import CallbackQueryHandler
 from telegram.parsemode import ParseMode
 
-from ..modules.helper_funcs.anonymous import user_admin as u_admin, AdminPerms, resolve_user as res_user, UserClass
+from .helper_funcs.admin_status import (
+    user_admin_check,
+    bot_admin_check,
+    AdminPerms,
+    get_bot_member,
+    bot_is_admin,
+    user_is_admin,
+    user_not_admin_check,
+)
 
 @kigcmd(command="pin", can_disable=False)
 @spamcheck
-@bot_admin
-@can_pin
-@u_admin(UserClass.MOD, AdminPerms.CAN_PIN_MESSAGES)
+@bot_admin_check(AdminPerms.CAN_PIN_MESSAGES)
+@user_admin_check(AdminPerms.CAN_PIN_MESSAGES, allow_mods = True)
 @loggable
 def pin(update: Update, context: CallbackContext) -> str:
     bot = context.bot
     args = context.args
 
-    u = update.effective_user
+    user = update.effective_user
     chat = update.effective_chat
-    message = update.effective_message
-    user = res_user(u, message.message_id, chat)
 
     is_group = chat.type != "private" and chat.type != "channel"
     prev_message = update.effective_message.reply_to_message
@@ -84,17 +83,17 @@ def pin(update: Update, context: CallbackContext) -> str:
 
 @kigcmd(command="unpin", can_disable=False)
 @spamcheck
-@bot_admin
-@can_pin
+@bot_admin_check(AdminPerms.CAN_PIN_MESSAGES)
+@user_admin_check(AdminPerms.CAN_PIN_MESSAGES, allow_mods = True)
 @loggable
 def unpin(update: Update, context: CallbackContext) -> str:
     bot = context.bot
     chat = update.effective_chat
-    u = update.effective_user
+    user = update.effective_user
 
     message = update.effective_message
 
-    user = res_user(u, message.message_id, chat)
+
 
     reply_msg = message.reply_to_message
     if not reply_msg:
@@ -144,7 +143,8 @@ def unpin(update: Update, context: CallbackContext) -> str:
 
 @kigcmd(command="unpinall", filters=Filters.chat_type.groups)
 @spamcheck
-@bot_admin
+@bot_admin_check(AdminPerms.CAN_PIN_MESSAGES)
+@user_admin_check(AdminPerms.CAN_PIN_MESSAGES, allow_mods = True)
 @spamcheck
 def rmall_filters(update, context):
     chat = update.effective_chat
@@ -206,7 +206,7 @@ def unpin_callback(update, context: CallbackContext) -> str:
     elif query.data == "pinned_cancel":
         if member.status == "creator" or query.from_user.id in SUDO_USERS:
             msg.edit_text("Unpinning all pinned messages has been cancelled.")
-            return
+            return ""
         else:
             query.answer("Only owner of the chat can do this.")
             return ""
@@ -237,15 +237,12 @@ ENUM_FUNC_MAP = {
 
 @kigcmd(command="permapin", filters=Filters.chat_type.groups, run_async=True)
 @spamcheck
-@can_pin
 @connection_status
-@u_admin(UserClass.ADMIN, AdminPerms.CAN_PIN_MESSAGES)
+@bot_admin_check(AdminPerms.CAN_PIN_MESSAGES)
+@user_admin_check(AdminPerms.CAN_PIN_MESSAGES, allow_mods = True)
 def permapin(update, context):
 
     message = update.effective_message  # type: Optional[Message]
-    u = update.effective_user  # type: Optional[User]
-    chat = update.effective_chat  # type: Optional[Chat]
-    user = res_user(u, message.message_id, chat)
 
     chat_id = update.effective_chat.id
 
