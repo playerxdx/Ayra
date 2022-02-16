@@ -32,12 +32,11 @@ from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     ParseMode,
-    Update, ChatMember, User,
+    Update, User,
 )
 from telegram.error import BadRequest, TelegramError
 from telegram.ext import (
     CallbackContext,
-    CallbackQueryHandler,
     Filters,
 )
 from telegram.utils.helpers import escape_markdown, mention_html, mention_markdown
@@ -46,12 +45,13 @@ from .helper_funcs.admin_status import (
     user_admin_check,
     bot_admin_check,
     AdminPerms,
-    get_bot_member,
-    bot_is_admin,
-    user_is_admin,
-    user_not_admin_check,
 )
 import tg_bot.modules.sql.log_channel_sql as logsql
+
+from ..import sibylClient
+from .sql.sibylsystem_sql import does_chat_sibylban
+from SibylSystem import GeneralException
+
 
 VALID_WELCOME_FORMATTERS = [
     "first",
@@ -203,10 +203,22 @@ def new_member(update: Update, context: CallbackContext):  # sourcery no-metrics
                 return
             except:
                 pass
-        if sw != None:
+        if sw is not None:
             sw_ban = sw.get_ban(new_mem.id)
             if sw_ban:
                 return
+
+        data = None
+        if sibylClient and does_chat_sibylban(chat.id):
+            try:
+                data = sibylClient.get_info(user.id)
+            except GeneralException:
+                pass
+            except BaseException as e:
+                log.error(e)
+                pass
+            if data and data.banned:
+                return   # all modes handle it in different ways
 
         reply = update.message.message_id
         cleanserv = sql.clean_service(chat.id)

@@ -11,6 +11,7 @@ from configparser import ConfigParser
 from ptbcontrib.postgres_persistence import PostgresPersistence
 from logging.config import fileConfig
 from functools import wraps
+from SibylSystem import PsychoPass
 StartTime = time.time()
 
 def get_user_list(key):
@@ -87,6 +88,7 @@ class KigyoINIT:
         self.GROUP_BLACKLIST =  self.parser.get("GROUP_BLACKLIST", [])
         self.GLOBALANNOUNCE =  self.parser.getboolean("GLOBALANNOUNCE", False)
         self.BACKUP_PASS =  self.parser.get("BACKUP_PASS", None)
+        self.SIBYL_KEY =  self.parser.get("SIBYL_KEY", None)
 
 
 
@@ -151,10 +153,22 @@ ANTISPAM_TOGGLE = KInit.ANTISPAM_TOGGLE
 bot_username = KInit.bot_username
 GLOBALANNOUNCE = KInit.GLOBALANNOUNCE
 BACKUP_PASS = KInit.BACKUP_PASS
+SIBYL_KEY = KInit.SIBYL_KEY
 
 BOT_ID = TOKEN.split(":")[0]
 
 
+sibylClient: PsychoPass = None
+
+if SIBYL_KEY:
+    try:
+        sibylClient = PsychoPass(SIBYL_KEY)
+        logging.info("Connected to Sibyl System, NONA Tower")
+    except Exception as e:
+        sibylClient = None
+        logging.warning(
+            f"Failed to load SibylSystem due to {e.with_traceback(e.__traceback__)}",
+        )
 
 
 try:
