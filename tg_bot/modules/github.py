@@ -5,31 +5,19 @@ from typing import Optional, List
 import tg_bot.modules.helper_funcs.git_api as api
 import tg_bot.modules.sql.github_sql as sql
 
-from tg_bot.modules.sql.clear_cmd_sql import get_clearcmd
-from tg_bot import dispatcher, OWNER_ID, SUDO_USERS, SUPPORT_USERS, spamcheck
-from tg_bot.modules.helper_funcs.filters import CustomFilters
-from tg_bot.modules.helper_funcs.chat_status import user_admin
-from tg_bot.modules.helper_funcs.misc import delete
-from tg_bot.modules.disable import DisableAbleCommandHandler
+from .sql.clear_cmd_sql import get_clearcmd
+from tg_bot import dispatcher, spamcheck
+from .helper_funcs.misc import delete
+from .disable import DisableAbleCommandHandler
 
 from telegram.ext import (
     CallbackContext,
     CommandHandler,
-    Filters,
-    MessageHandler,
-    RegexHandler,
-    run_async,
 )
 
 from telegram import (
-    Message,
-    Chat,
     Update,
-    Bot,
-    User,
     ParseMode,
-    InlineKeyboardMarkup,
-    MAX_MESSAGE_LENGTH,
 )
 
 # @spamcheck
@@ -171,59 +159,59 @@ def changelog(update: Update, context: CallbackContext):
     deletion(update, context, msg.reply_text(body))
     return
 
-@spamcheck
-@user_admin
-def saveRepo(update: Update, context: CallbackContext):
-    bot, args = context.bot, context.args
-    chat_id = update.effective_chat.id
-    msg = update.effective_message
-    if (
-        len(args) != 2
-        and (len(args) != 3 and not args[2].isdigit())
-        or not ("/" in args[1])
-    ):
-        deletion(update, context, msg.reply_text("Invalid data, use <reponame> <user>/<repo> <value (optional)>"))
-        return
-    index = 0
-    if len(args) == 3:
-        index = int(args[2])
-    sql.add_repo_to_db(str(chat_id), args[0], args[1], index)
-    deletion(update, context, msg.reply_text("Repo shortcut saved successfully!"))
-    return
+# @spamcheck
+# @user_admin
+# def saveRepo(update: Update, context: CallbackContext):
+#     bot, args = context.bot, context.args
+#     chat_id = update.effective_chat.id
+#     msg = update.effective_message
+#     if (
+#         len(args) != 2
+#         and (len(args) != 3 and not args[2].isdigit())
+#         or not ("/" in args[1])
+#     ):
+#         deletion(update, context, msg.reply_text("Invalid data, use <reponame> <user>/<repo> <value (optional)>"))
+#         return
+#     index = 0
+#     if len(args) == 3:
+#         index = int(args[2])
+#     sql.add_repo_to_db(str(chat_id), args[0], args[1], index)
+#     deletion(update, context, msg.reply_text("Repo shortcut saved successfully!"))
+#     return
 
-@spamcheck
-@user_admin
-def delRepo(update: Update, context: CallbackContext):
-    bot, args = context.bot, context.args
-    chat_id = update.effective_chat.id
-    msg = update.effective_message
-    if len(args) != 1:
-        msg.reply_text("Invalid repo name!")
-        return
-    sql.rm_repo(str(chat_id), args[0])
-    deletion(update, context, msg.reply_text("Repo shortcut deleted successfully!"))
-    return
+# @spamcheck
+# @user_admin
+# def delRepo(update: Update, context: CallbackContext):
+#     bot, args = context.bot, context.args
+#     chat_id = update.effective_chat.id
+#     msg = update.effective_message
+#     if len(args) != 1:
+#         msg.reply_text("Invalid repo name!")
+#         return
+#     sql.rm_repo(str(chat_id), args[0])
+#     deletion(update, context, msg.reply_text("Repo shortcut deleted successfully!"))
+#     return
 
-@spamcheck
-def listRepo(update: Update, context: CallbackContext):
-    chat_id = update.effective_chat.id
-    chat = update.effective_chat
-    chat_name = chat.title or chat.first_name or chat.username
-    repo_list = sql.get_all_repos(str(chat_id))
-    msg = "*List of repo shotcuts in {}:*\n"
-    des = "You can get repo shortcuts by using `/fetch repo`, or `&repo`.\n"
-    for repo in repo_list:
-        repo_name = " • `{}`\n".format(repo.name)
-        if len(msg) + len(repo_name) > MAX_MESSAGE_LENGTH:
-            deletion(update, context, update.effective_message.reply_text(msg, parse_mode=ParseMode.MARKDOWN))
-            msg = ""
-        msg += repo_name
-    if msg == "*List of repo shotcuts in {}:*\n":
-        deletion(update, context, update.effective_message.reply_text("No repo shortcuts in this chat!"))
-    elif len(msg) != 0:
-        deletion(update, context, update.effective_message.reply_text(
-            msg.format(chat_name) + des, parse_mode=ParseMode.MARKDOWN
-        ))
+# @spamcheck
+# def listRepo(update: Update, context: CallbackContext):
+#     chat_id = update.effective_chat.id
+#     chat = update.effective_chat
+#     chat_name = chat.title or chat.first_name or chat.username
+#     repo_list = sql.get_all_repos(str(chat_id))
+#     msg = "*List of repo shotcuts in {}:*\n"
+#     des = "You can get repo shortcuts by using `/fetch repo`, or `&repo`.\n"
+#     for repo in repo_list:
+#         repo_name = " • `{}`\n".format(repo.name)
+#         if len(msg) + len(repo_name) > MAX_MESSAGE_LENGTH:
+#             deletion(update, context, update.effective_message.reply_text(msg, parse_mode=ParseMode.MARKDOWN))
+#             msg = ""
+#         msg += repo_name
+#     if msg == "*List of repo shotcuts in {}:*\n":
+#         deletion(update, context, update.effective_message.reply_text("No repo shortcuts in this chat!"))
+#     elif len(msg) != 0:
+#         deletion(update, context, update.effective_message.reply_text(
+#             msg.format(chat_name) + des, parse_mode=ParseMode.MARKDOWN
+#         ))
 
 @spamcheck
 def getVer(update: Update, context: CallbackContext):
@@ -250,9 +238,9 @@ RELEASE_HANDLER = DisableAbleCommandHandler(
 FETCH_HANDLER = DisableAbleCommandHandler(
     "fetch", cmdFetch, admin_ok=True, run_async=True
 )
-SAVEREPO_HANDLER = CommandHandler("saverepo", saveRepo, run_async=True)
-DELREPO_HANDLER = CommandHandler("delrepo", delRepo, run_async=True)
-LISTREPO_HANDLER = DisableAbleCommandHandler("listrepo", listRepo, admin_ok=True, run_async=True)
+# SAVEREPO_HANDLER = CommandHandler("saverepo", saveRepo, run_async=True)
+# DELREPO_HANDLER = CommandHandler("delrepo", delRepo, run_async=True)
+# LISTREPO_HANDLER = DisableAbleCommandHandler("listrepo", listRepo, admin_ok=True, run_async=True)
 VERCHECKER_HANDLER = DisableAbleCommandHandler("gitver", getVer, admin_ok=True, run_async=True)
 CHANGELOG_HANDLER = DisableAbleCommandHandler(
     "changelog", changelog, admin_ok=True, run_async=True
@@ -263,15 +251,15 @@ CHANGELOG_HANDLER = DisableAbleCommandHandler(
 
 dispatcher.add_handler(RELEASE_HANDLER)
 dispatcher.add_handler(FETCH_HANDLER)
-dispatcher.add_handler(SAVEREPO_HANDLER)
-dispatcher.add_handler(DELREPO_HANDLER)
-dispatcher.add_handler(LISTREPO_HANDLER)
+# dispatcher.add_handler(SAVEREPO_HANDLER)
+# dispatcher.add_handler(DELREPO_HANDLER)
+# dispatcher.add_handler(LISTREPO_HANDLER)
 # dispatcher.add_handler(HASHFETCH_HANDLER)
 dispatcher.add_handler(VERCHECKER_HANDLER)
 dispatcher.add_handler(CHANGELOG_HANDLER)
 
 
-from tg_bot.modules.language import gs
+from .language import gs
 
 def get_help(chat):
     return gs(chat, "github_help")

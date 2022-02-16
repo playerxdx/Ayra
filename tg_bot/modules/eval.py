@@ -9,7 +9,7 @@ from contextlib import redirect_stdout
 from tg_bot import log as LOGGER, dispatcher, SYS_ADMIN, OWNER_ID
 from telegram import ParseMode, Update
 from telegram.ext import Filters, CallbackContext
-from tg_bot.modules.helper_funcs.decorators import kigcmd
+from .helper_funcs.decorators import kigcmd
 import subprocess
 
 namespaces = {}

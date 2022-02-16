@@ -11,7 +11,7 @@ from telegram.ext import CallbackContext as Ctx
 
 from tg_bot import dispatcher
 
-from ..helper_funcs.decorators import kigcallback as kigCb
+# from ..helper_funcs.decorators import kigcallback as kigCb
 
 from .admin_status_helpers import (
 	ADMINS_CACHE as A_CACHE,
@@ -170,30 +170,23 @@ def user_admin_check(permission: AdminPerms = None, allow_mods: bool = False, no
 	return wrapper
 
 
-# decorator, can be used as @bot_admin_check() to check user is admin
-# or @bot_admin_check(AdminPerms.value) to check for a specific permission
-# ustat can be used in both cases to allow moderators to use the command
-def user_not_admin_check():
-	def wrapper(func):
-		@wraps(func)
-		def wrapped(update: Update, context: Ctx, *args, **kwargs):
-			message = update.effective_message
-			user = update.effective_user
-
-			if (message.is_automatic_forward
-					or (message.sender_chat and message.sender_chat.type != "channel")
-					or not user):
-				return
-
-			elif not user_is_admin(update, user.id, channels = True):
-				return func(update, context, *args, **kwargs)
-
-		return wrapped
-
-	return wrapper
+# decorator, can be used as @user_not_admin_check to check user is not admin
+def user_not_admin_check(func):
+	@wraps(func)
+	def wrapped(update: Update, context: Ctx, *args, **kwargs):
+		message = update.effective_message
+		user = update.effective_user
+		if (message.is_automatic_forward
+				or (message.sender_chat and message.sender_chat.type != "channel")
+				or not user):
+			return
+		elif not user_is_admin(update, user.id, channels = True):
+			return func(update, context, *args, **kwargs)
+	return wrapped
 
 
-@kigCb(pattern = "AnonCB")
+
+# @kigCb(pattern = "AnonCB")
 def perm_callback_check(upd: Update, _: Ctx):
 	callback = upd.callback_query
 	chat_id = int(callback.data.split('/')[1])

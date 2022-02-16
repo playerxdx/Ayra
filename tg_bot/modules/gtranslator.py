@@ -1,6 +1,6 @@
 from tg_bot import spamcheck
 from gpytranslate import SyncTranslator
-from tg_bot.modules.language import gs
+from .language import gs
 
 def get_help(chat):
     return gs(chat, "gtranslate_help")
@@ -11,7 +11,7 @@ trans = SyncTranslator()
 
 from telegram import ParseMode, Update
 from telegram.ext import CallbackContext
-from tg_bot.modules.helper_funcs.decorators import kigcmd
+from .helper_funcs.decorators import kigcmd
 
 @kigcmd(command=["tr", "tl"])
 @spamcheck

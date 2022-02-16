@@ -20,6 +20,7 @@ from telegram import (
     ChatAction,
 )
 from telegram.utils.helpers import mention_html, mention_markdown
+from .helper_funcs.admin_status import user_is_admin
 
 import tg_bot.modules.sql.feds_sql as sql
 from tg_bot import (
@@ -32,20 +33,20 @@ from tg_bot import (
     log,
     spamcheck,
 )
-from tg_bot.modules.sql.users_sql import get_user_com_chats
-from tg_bot.modules.helper_funcs.chat_status import is_user_admin
-from tg_bot.modules.helper_funcs.extraction import (
+from .sql.users_sql import get_user_com_chats
+
+from .helper_funcs.extraction import (
     extract_user,
     extract_unt_fedban,
     extract_user_fban,
 )
-from tg_bot.modules.helper_funcs.string_handling import markdown_parser
-from tg_bot.modules.helper_funcs.alternate import (
+from .helper_funcs.string_handling import markdown_parser
+from .helper_funcs.alternate import (
     send_message,
     typing_action,
     send_action,
 )
-from tg_bot.modules.helper_funcs.decorators import kigcmd, kigcallback
+from .helper_funcs.decorators import kigcmd, kigcallback
 
 # Hello bot owner, I spent many hours of my life for feds, Please don't remove this if you still respect MrYacha and peaktogoo and AyraHikari too
 # Federation by MrYacha 2018-2019
@@ -199,7 +200,7 @@ def fed_chat(update, _):
     fed_id = sql.get_fed_id(chat.id)
 
     user_id = update.effective_message.from_user.id
-    if not is_user_admin(update, user_id):
+    if not user_is_admin(update, user_id):
         update.effective_message.reply_text(
             "You must be an admin to execute this command"
         )
@@ -2305,9 +2306,9 @@ def welcome_fed(update, chat, user_id):
         if fbanreason != "No reason given.":
             msgg += "**Reason:** " + str(fbanreason)
         try:
-            update.effective_message.reply_text(msgg)
+            update.effective_message.reply_text(msgg, parse_mode="markdown")
         except BadRequest:
-            dispatcher.bot.send_message(chat.id, msgg)
+            dispatcher.bot.send_message(chat.id, msgg, parse_mode="markdown")
         update.effective_chat.ban_member(user_id)
         return True
     else:
@@ -2373,7 +2374,7 @@ def get_chat(chat_id, chat_data):
 
 __mod_name__ = "Federations"
 
-from tg_bot.modules.language import gs
+from .language import gs
 
 
 @kigcmd(command="fedownerhelp", pass_args=True)

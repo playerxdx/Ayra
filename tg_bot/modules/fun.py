@@ -11,9 +11,10 @@ from telegram import ParseMode, Update, ChatPermissions
 from telegram.ext import CallbackContext
 
 import tg_bot.modules.fun_strings as fun_strings
-from tg_bot.modules.helper_funcs.chat_status import is_user_admin
-from tg_bot.modules.helper_funcs.extraction import extract_user
-from tg_bot.modules.helper_funcs.decorators import kigcmd
+from .helper_funcs.admin_status import user_is_admin
+
+from .helper_funcs.extraction import extract_user
+from .helper_funcs.decorators import kigcmd
 
 
 @kigcmd(command='runs')
@@ -45,7 +46,7 @@ def slap(update: Update, context: CallbackContext):
 
         if isinstance(temp, list):
             if temp[2] == "tmute":
-                if is_user_admin(update, message.from_user.id):
+                if user_is_admin(update, message.from_user.id):
                     reply_text(temp[1])
                     return
 
