@@ -1,4 +1,5 @@
 import html
+import time
 
 from telegram import ParseMode, Update
 from telegram.error import BadRequest
@@ -28,7 +29,7 @@ from .helper_funcs.admin_status import (
     user_not_admin_check, update_admins_cache,
 )
 
-from typing import Optional
+from typing import Optional, Dict
 
 
 @kigcmd(command="fullpromote", can_disable=False)
@@ -395,10 +396,16 @@ def invite(update: Update, context: CallbackContext) -> Optional[str]:
 @kigcmd(command=["admincache"], can_disable=False)
 @spamcheck
 def admincache(update: Update, context: CallbackContext):
-    bot = context.bot
     chat = update.effective_chat
     msg = update.effective_message
     user = update.effective_user
+    try:
+        last = _admincache[chat.id]
+    except KeyError:
+        last = None
+    now = time.time()
+    if last and last + 600 > now:
+        return msg.reply_text("this command can only be used once every 10 minutes")
 
     if chat.type in ["channel", "private"]:
         return msg.reply_text("this command can only be used in groups")
@@ -408,6 +415,10 @@ def admincache(update: Update, context: CallbackContext):
 
     update_admins_cache(chat.id)
     msg.reply_text("Admin cache updated")
+    _admincache[chat.id] = time.time()
+
+
+_admincache = dict()
 
 
 @register(pattern="(admin|admins|staff|adminlist)", groups_only=True, no_args=True)
