@@ -76,7 +76,7 @@ def edit_anon_msg(msg: Message, text: str):
 
 
 def user_is_not_admin_errmsg(msg: Message, permission: AdminPerms = None, cb: CallbackQuery = None):
-	if permission.value:
+	if permission:
 		errmsg = f"You lack the following permission for this command:\n`{permission.value}`!"
 	else:
 		errmsg = f"You lack the necessary permission needed for this command!"
