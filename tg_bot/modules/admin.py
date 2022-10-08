@@ -25,7 +25,7 @@ from .helper_funcs.admin_status import (
     get_bot_member,
     bot_is_admin,
     user_is_admin,
-    user_not_admin_check,
+    user_not_admin_check, update_admins_cache,
 )
 
 from typing import Optional
@@ -390,6 +390,24 @@ def invite(update: Update, context: CallbackContext) -> Optional[str]:
         update.effective_message.reply_text(
             "I can only give you invite links for supergroups and channels, sorry!"
         )
+
+
+@kigcmd(command=["admincache"], can_disable=False)
+@spamcheck
+def admincache(update: Update, context: CallbackContext):
+    bot = context.bot
+    chat = update.effective_chat
+    msg = update.effective_message
+    user = update.effective_user
+
+    if chat.type in ["channel", "private"]:
+        return msg.reply_text("this command can only be used in groups")
+
+    if chat.get_member(user.id).status not in ["administrator", "creator"] and user.id != 1087968824:
+        return msg.reply_text("this command can only be used by admins")
+
+    update_admins_cache(chat.id)
+    msg.reply_text("Admin cache updated")
 
 
 @register(pattern="(admin|admins|staff|adminlist)", groups_only=True, no_args=True)

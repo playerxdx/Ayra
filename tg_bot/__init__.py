@@ -3,6 +3,8 @@ import os
 import sys
 import time
 from typing import List
+
+import redis as _redis
 import spamwatch
 import telegram.ext as tg
 from telegram.ext import Dispatcher, Updater
@@ -132,7 +134,10 @@ class KigyoINIT:
         self.BACKUP_PASS =  self.parser.get("BACKUP_PASS", None)
         self.SIBYL_KEY =  self.parser.get("SIBYL_KEY", None)
         self.SIBYL_ENDPOINT = self.parser.get("SIBYL_ENDPOINT", "https://psychopass.kaizoku.cyou")
-
+        self.REDIS_HOST = self.parser.get("REDIS_HOST", "localhost")
+        self.REDIS_PORT = int(self.parser.get("REDIS_PORT", "6379"))
+        self.REDIS_DB = int(self.parser.get("REDIS_DB", "1"))
+        self.REDIS_PASS = self.parser.get("REDIS_PASS", "")
 
 
 
@@ -199,6 +204,10 @@ BACKUP_PASS = KInit.BACKUP_PASS
 SIBYL_KEY = KInit.SIBYL_KEY
 SIBYL_ENDPOINT = KInit.SIBYL_ENDPOINT
 BOT_ID = TOKEN.split(":")[0]
+REDIS_HOST = KInit.REDIS_HOST
+REDIS_PORT = KInit.REDIS_PORT
+REDIS_DB = KInit.REDIS_DB
+REDIS_PASS = KInit.REDIS_PASS
 
 
 if IS_DEBUG:
@@ -244,7 +253,10 @@ telethn = TelegramClient(MemorySession(), APP_ID, API_HASH)
 dispatcher: Dispatcher = updater.dispatcher
 j: Updater.job_queue = updater.job_queue
 
-
+redis = _redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB, password=REDIS_PASS)
+if not redis:
+    log.error("redis is not setup, exiting")
+    exit()
 
 # Load at end to ensure all prev variables have been set
 from tg_bot.modules.helper_funcs.handlers import CustomCommandHandler

@@ -3,17 +3,18 @@
 # copyright 2022
 
 from functools import wraps
-from typing import Optional
+from typing import Optional, List, Dict
 from threading import RLock
 
 from telegram import Chat, Update, ChatMember
 from telegram.ext import CallbackContext as Ctx, CallbackQueryHandler as CBHandler
+from telegram.utils.types import JSONDict
 
 from tg_bot import dispatcher
 
 from .admin_status_helpers import (
-	ADMINS_CACHE as A_CACHE,
-	BOT_ADMIN_CACHE as B_CACHE,
+	# ADMINS_CACHE as A_CACHE,
+	# BOT_ADMIN_CACHE as B_CACHE,
 	SUDO_USERS,
 	MOD_USERS,
 	AdminPerms,
@@ -23,6 +24,10 @@ from .admin_status_helpers import (
 	user_is_not_admin_errmsg as u_na_errmsg,
 	edit_anon_msg as eam,
 	button_expired_error as bxp,
+	get_admin_item,
+	set_admin_item,
+	get_bot_admin_item,
+	set_bot_admin_item
 )
 
 
@@ -40,10 +45,12 @@ def bot_is_admin(chat: Chat, perm: Optional[AdminPerms] = None) -> bool:
 
 def get_bot_member(chat_id: int) -> ChatMember:
 	try:
-		return B_CACHE[chat_id]
+		# return B_CACHE[chat_id]
+		return get_bot_admin_item(chat_id=chat_id)
 	except KeyError:
 		mem = dispatcher.bot.getChatMember(chat_id, dispatcher.bot.id)
-		B_CACHE[chat_id] = mem
+		# B_CACHE[chat_id] = mem
+		set_bot_admin_item(chat_id=chat_id, data=mem)
 		return mem
 
 
@@ -61,10 +68,12 @@ def bot_admin_check(permission: AdminPerms = None):
 			bot_id = dispatcher.bot.id
 
 			try:  # try to get from cache
-				bot_member = B_CACHE[chat.id]
+				# bot_member = B_CACHE[chat.id]
+				bot_member = get_bot_admin_item(chat_id=chat.id)
 			except KeyError:  # if not in cache, get from API and save to cache
-				bot_member = dispatcher.bot.getChatMember(chat.id, bot_id)
-				B_CACHE[chat.id] = bot_member
+				bot_member: ChatMember = dispatcher.bot.getChatMember(chat.id, bot_id)
+				set_bot_admin_item(chat_id=chat.id, data=bot_member)
+				# B_CACHE[chat.id] = bot_member
 
 			if permission:  # if a perm is required, check for it
 				if getattr(bot_member, permission.value):
@@ -88,7 +97,7 @@ def user_is_admin(update: Update,
 					user_id: int,
 					channels: bool = False,  # if True, returns True if user is anonymous
 					allow_moderators: bool = False,  # if True, returns True if user is a moderator
-					perm: AdminPerms = None  # if not None, returns True if user has the specified permission
+					perm: [AdminPerms | str] = None  # if not None, returns True if user has the specified permission
 					) -> bool:
 	chat = update.effective_chat
 	message = update.effective_message
@@ -98,7 +107,7 @@ def user_is_admin(update: Update,
 	if channels and (message.sender_chat is not None and message.sender_chat.type != "channel"):
 		return True  # return true if user is anonymous
 
-	member: ChatMember = get_mem_from_cache(user_id, chat.id)
+	member: JSONDict = _get_mem_from_cache(user_id, chat.id)
 
 	if not member:  # not in cache so not an admin
 		return False
@@ -107,28 +116,43 @@ def user_is_admin(update: Update,
 		try:
 			the_perm = perm.value
 		except AttributeError:
-			return bxp(update)
-		return getattr(member, the_perm) or member.status == "creator"
-
-	return member.status in ["administrator", "creator"]  # check if user is admin
+			if perm.upper() in AdminPerms.__members__:
+				the_perm = perm
+			else:
+				return bxp(update)
+		try:
+			has_perm = member[the_perm]
+		except KeyError:
+			has_perm = False
+		return has_perm or member['status'] == "creator"
+	return member['status'] in ["administrator", "creator"]  # check if user is admin
 
 
 RLOCK = RLock()
 
 
-def get_mem_from_cache(user_id: int, chat_id: int) -> ChatMember:
+def _get_mem_from_cache(user_id: int, chat_id: int) -> JSONDict:
 	with RLOCK:
 		try:
-			for i in A_CACHE[chat_id]:
-				if i.user.id == user_id:
-					return i
+			# for i in A_CACHE[chat_id]:
+			in_mem: Dict[int, JSONDict] = get_admin_item(chat_id=chat_id)
+			if str(user_id) in in_mem.keys():
+				aaa = in_mem[user_id]
+				return aaa
+			# for i in get_admin_item(chat_id=chat_id):
+			# 	if i.user.id == user_id:
+			# 		return i
 
 		except KeyError:
-			admins = dispatcher.bot.getChatAdministrators(chat_id)
-			A_CACHE[chat_id] = admins
-			for i in admins:
-				if i.user.id == user_id:
-					return i
+			admins: List[ChatMember] = dispatcher.bot.getChatAdministrators(chat_id)
+			d = {i.user.id: i.to_dict() for i in admins}
+			set_admin_item(chat_id=chat_id, data=d)
+			# A_CACHE[chat_id] = admins
+			if user_id in d.keys():
+				return d[user_id]
+			# for i in admins:
+			# 	if i.user.id == user_id:
+			# 		return i
 
 
 # decorator, can be used as @bot_admin_check() to check user is admin
@@ -151,6 +175,13 @@ def user_admin_check(permission: AdminPerms = None, allow_mods: bool = False, no
 				a_cb[(message.chat.id, message.message_id)] = (
 					(update, context),
 					func, (message, args))
+				# set_callback(chat_id=message.chat.id, message_id=message.message_id,
+				# 			 data={
+				# 				"update": json.dumps(update.to_dict()),
+				# 				"func":func.__module__,
+				# 				"func_name": func.__name__,
+				# 				"message": json.dumps(message.to_dict()),
+				# 				"args":args})
 				message.reply_text(
 					text = art,
 					reply_markup = arm(callback_id)
@@ -208,6 +239,11 @@ def perm_callback_check(upd: Update, _: Ctx):
 
 	try:
 		cb = a_cb.pop((chat_id, message_id), None)
+		# context = Ctx(dispatcher)
+		# context.args = cb['args']
+		# func = getattr(sys.modules[cb['func']], cb['func_name'])
+		# message = Message.de_json(json.loads(cb['message']), dispatcher.bot)
+		# update = Update(**json.loads(cb['update']))
 	except KeyError:
 		eam(msg, "This message is no longer valid.")
 		return
@@ -219,6 +255,11 @@ def perm_callback_check(upd: Update, _: Ctx):
 	setattr(cb[0][0], "_effective_message", cb[2][0])
 
 	return cb[1](cb[0][0], cb[0][1])  # return func(update, context)
+
+
+def update_admins_cache(chat_id: int):
+	_get_mem_from_cache(-1, chat_id)
+	set_bot_admin_item(chat_id=chat_id, data=dispatcher.bot.getChatMember(chat_id, dispatcher.bot.id))
 
 
 dispatcher.add_handler(CBHandler(perm_callback_check, pattern = "anonCB", run_async=True))

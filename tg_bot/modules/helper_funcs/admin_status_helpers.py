@@ -2,13 +2,18 @@
 # written for OdinRobot
 # copyright 2022
 # this module contains various helper functions/classes to help with the admin status module
-
+import json
 from enum import Enum
+from typing import List, Any, Dict
+
 from cachetools import TTLCache
 
-from telegram import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ParseMode, Message, Update, message
+from telegram import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ParseMode, Message, Update, message, \
+	ChatMember
+from telegram.utils.types import JSONDict
 
-from tg_bot import OWNER_ID, SYS_ADMIN, DEV_USERS, MOD_USERS, SUDO_USERS, SUPPORT_USERS, WHITELIST_USERS
+from tg_bot import OWNER_ID, SYS_ADMIN, DEV_USERS, MOD_USERS, SUDO_USERS, SUPPORT_USERS, WHITELIST_USERS, redis, \
+	dispatcher
 
 # stores admin in memory for 10 min.
 ADMINS_CACHE = TTLCache(maxsize = 512, ttl = 60 * 30)
@@ -92,6 +97,38 @@ def button_expired_error(u: Update):
 		u.effective_message.delete()
 		return
 	return u.effective_message.edit_text(errmsg, parse_mode = ParseMode.MARKDOWN)
+
+
+def get_admin_item(chat_id: int) -> Dict[int, JSONDict]:
+	data = redis.get(f"admin{chat_id}")
+	if data:
+		return json.loads(data)
+	else:
+		raise KeyError
+
+
+def get_bot_admin_item(chat_id: int) -> ChatMember:
+	data = redis.get(f"bot_admin{chat_id}")
+	if data:
+		return ChatMember.de_json(data=json.loads(data), bot=dispatcher.bot)
+	else:
+		raise KeyError
+
+
+def set_admin_item(chat_id: int, data: Dict[int, ChatMember]) -> None:
+	redis.set(f"admin{chat_id}", json.dumps(data))
+
+
+def set_bot_admin_item(chat_id: int, data: ChatMember) -> None:
+	redis.set(f"bot_admin{chat_id}", data.to_json())
+
+
+def get_callback(chat_id: int, message_id: int):
+	return json.loads(redis.get(f"cb{message_id}{chat_id}"))
+
+
+def set_callback(chat_id: int, message_id: int, data) -> None:
+	redis.set(f"cb{message_id}{chat_id}", json.dumps(data))
 
 
 anon_callbacks = {}

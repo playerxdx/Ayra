@@ -1,6 +1,7 @@
 import html
 
 from tg_bot import log, SUDO_USERS, WHITELIST_USERS, spamcheck
+from .helper_funcs.admin_status_helpers import get_admin_item
 from .log_channel import loggable
 from .sql import reporting_sql as sql
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update
@@ -17,7 +18,7 @@ from .helper_funcs.admin_status import (
     bot_admin_check,
     AdminPerms,
     user_not_admin_check,
-    A_CACHE
+
 )
 
 REPORT_GROUP = 12
@@ -85,8 +86,12 @@ def report(update: Update, context: CallbackContext) -> str:
         if reported_user.id in REPORT_IMMUNE_USERS:
             message.reply_text("Uh? You reporting a Super user?")
             return ""
-
-        admin_list = [i.user.id for i in A_CACHE[chat.id] if not (i.user.is_bot or i.is_anonymous)]
+        admin_list = []
+        for key, val in get_admin_item(chat.id).items():
+            if val['user']['is_bot'] or val['is_anonymous']:
+                continue
+            admin_list.append(int(key))
+        # admin_list = [i.user.id for i in A_CACHE[chat.id] if not (i.user.is_bot or i.is_anonymous)]
 
         if reported_user.id in admin_list:
             message.reply_text("Why are you reporting an admin?")
@@ -100,6 +105,7 @@ def report(update: Update, context: CallbackContext) -> str:
                 except BadRequest:
                     log.exception(f"Exception while reporting user: {user} in chat: {chat.id}")
             message.reply_text(reported, parse_mode = ParseMode.HTML)
+            return ""
 
         message = update.effective_message
         msg = (
