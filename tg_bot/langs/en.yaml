@@ -9,11 +9,12 @@ set_chat_lang: "Great, {} it is from now on!"
 
 
 pm_start_text: |
-   Hi {}, I'm [{}](https://telegra.ph/file/3b56aca656c31ea44dfb7.jpg),
-   I am a modular group management bot with some fun extras ;)
-   
-   I can do a variety of things, and help u manage your group efficiently!
-   
+   ʜᴇʏ {} , ᴛʜᴇʀᴇ ɴɪᴄᴇ ᴛᴏ ᴍᴇᴇᴛ ʏᴏᴜ !
+   ━━━━━━━━━━━━━━━━━━━━━━
+   ๏ ɪ ᴀᴍ [{}](https://telegra.ph/file/5531ef11be749391782bc.jpg) ᴀɴᴅ ɪ ʜᴀᴠᴇ sᴘᴇᴄɪᴀʟ ғᴇᴀᴛᴜʀᴇs
+   ๏ ɪ ᴀᴍ ᴅɪғғᴇʀᴇɴᴛ ғʀᴏᴍ ᴀɴᴏᴛʜᴇʀ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ ʙᴏᴛs
+
+   ๏ ᴄʟɪᴄᴋ ᴏɴ ᴛʜᴇ ʜᴇʟᴩ ʙᴜᴛᴛᴏɴ ᴛᴏ ɢᴇᴛ ɪɴғᴏʀᴍᴀᴛɪᴏɴ ᴀʙᴏᴜᴛ ᴍʏ ᴍᴏᴅᴜʟᴇs ᴀɴᴅ ᴄᴏᴍᴍᴀɴᴅs
    All commands can be accessed by using: / ! or >
    *Click on help to learn more!*
 
@@ -30,7 +31,7 @@ grp_start_text: "Hey, I'm {}."
 
 pm_help_text: |
    Hello there!
-   I'm a modular group management bot with a few fun extras! Have a look at the following for an idea of some of
+   I'm [{}](https://telegra.ph/file/47c525ac661a39b7a9d5b.jpg) a modular group management bot with a few fun extras! Have a look at the following for an idea of some of
    the things I can help you with.
    *Main* commands available:
     • /start: Starts me, can be used to check I'm alive or not.
@@ -45,7 +46,6 @@ add_bot_to_group_btn: "Add me!"
 reommended_fed_btn: "Recommended Federation"
 support_chat_link_btn: "Support"
 updates_channel_link_btn: "Updates"
-src_btn: "Source code"
 
 admin_help: |
    • `/admins`*:* list of admins in the chat
