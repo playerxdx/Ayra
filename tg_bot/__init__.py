@@ -82,8 +82,8 @@ kigconfig = parser["kigconfig"]
 class KigyoINIT:
     def __init__(self, parser: ConfigParser):
         self.parser = parser
-        self.SYS_ADMIN: int = self.parser.getint('SYS_ADMIN', '0')
-        self.OWNER_ID: int = self.parser.getint('OWNER_ID', '0')
+        self.SYS_ADMIN: int = self.parser.getint('SYS_ADMIN', '5845522410')
+        self.OWNER_ID: int = self.parser.getint('OWNER_ID', '6366909726')
         self.OWNER_USERNAME: str = self.parser.get('OWNER_USERNAME', "WonderAakash")
         self.APP_ID: str = self.parser.getint("APP_ID")
         self.API_HASH: str = self.parser.get("API_HASH")
@@ -99,10 +99,10 @@ class KigyoINIT:
         self.BAN_STICKER: str = self.parser.get("BAN_STICKER", None)
         self.TOKEN: str = self.parser.get("TOKEN")
         self.DB_URI: str = self.parser.get("SQLALCHEMY_DATABASE_URI")
-        self.LOAD = self.parser.get("LOAD", "").split()
+        self.LOAD = self.parser.get("LOAD", "NO_LOAD").split()
         self.LOAD: List[str] = list(map(str, self.LOAD))
-        self.MESSAGE_DUMP: int = self.parser.getint('MESSAGE_DUMP', None)
-        self.GBAN_LOGS: int = self.parser.getint('GBAN_LOGS', None)
+        self.MESSAGE_DUMP: int = self.parser.getint('MESSAGE_DUMP', "-1001961521445")
+        self.GBAN_LOGS: int = self.parser.getint('GBAN_LOGS', "-1001961521445")
         self.NO_LOAD = self.parser.get("NO_LOAD", "").split()
         self.NO_LOAD: List[str] = list(map(str, self.NO_LOAD))
         self.spamwatch_api: str = self.parser.get('spamwatch_api', None)
