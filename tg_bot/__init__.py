@@ -82,9 +82,9 @@ kigconfig = parser["kigconfig"]
 class KigyoINIT:
     def __init__(self, parser: ConfigParser):
         self.parser = parser
-        self.SYS_ADMIN: int = self.parser.getint('SYS_ADMIN', '1')
-        self.OWNER_ID: int = self.parser.getint('OWNER_ID', '0')
-        self.OWNER_USERNAME: str = self.parser.get('OWNER_USERNAME', "0")
+        self.SYS_ADMIN: int = self.parser.getint('SYS_ADMIN', '5065173867')
+        self.OWNER_ID: int = self.parser.getint('OWNER_ID', '6366909726')
+        self.OWNER_USERNAME: str = self.parser.get('OWNER_USERNAME', "WonderAakash")
         self.APP_ID: str = self.parser.getint("APP_ID")
         self.API_HASH: str = self.parser.get("API_HASH")
         self.WEBHOOK: bool = self.parser.getboolean('WEBHOOK', False)
