@@ -113,8 +113,8 @@ class KigyoINIT:
         self.WEATHER_API: str = self.parser.get('WEATHER_API', None)
         self.CF_API_KEY: str =  self.parser.get("CF_API_KEY", None)
         self.bot_id = 0 #placeholder
-        self.bot_name = " Ōɖìղ" #placeholder
-        self.bot_username = "OdinRobot" #placeholder
+        self.bot_name = "Ayra" #placeholder
+        self.bot_username = "AyraxRobot" #placeholder
         self.DEBUG: bool = self.parser.getboolean("IS_DEBUG", False)
         self.DROP_UPDATES: bool = self.parser.getboolean("DROP_UPDATES", True)
         self.BOT_API_URL: str = self.parser.get('BOT_API_URL', "https://api.telegram.org/bot")
@@ -123,11 +123,11 @@ class KigyoINIT:
         self.ALLOW_CHATS =  self.parser.getboolean("ALLOW_CHATS", True)
         self.SUPPORT_GROUP =  self.parser.get("SUPPORT_GROUP", 0)
         self.IS_DEBUG =  self.parser.getboolean("IS_DEBUG", False)
-        self.ANTISPAM_TOGGLE =  self.parser.getboolean("ANTISPAM_TOGGLE", True)
+        self.ANTISPAM_TOGGLE = True 
         self.GROUP_BLACKLIST =  self.parser.get("GROUP_BLACKLIST", [])
         self.GLOBALANNOUNCE =  self.parser.getboolean("GLOBALANNOUNCE", False)
-        self.BACKUP_PASS =  self.parser.get("BACKUP_PASS", None)
-        self.SIBYL_KEY =  self.parser.get("SIBYL_KEY", None)
+        self.BACKUP_PASS =  self.parser.get("BACKUP_PASS", "1234567")
+        self.SIBYL_KEY =  self.parser.get("SIBYL_KEY", "5845522410:8s6L3qkzNcCx4AHijttJT82zPgzvAKTkE9E9svE0YfGCchMF017d2JwAkOIgc2E-")
         self.SIBYL_ENDPOINT = self.parser.get("SIBYL_ENDPOINT", "https://psychopass.kaizoku.cyou")
 
 
