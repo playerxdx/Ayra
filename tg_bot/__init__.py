@@ -101,8 +101,8 @@ class KigyoINIT:
         self.DB_URI: str = self.parser.get("SQLALCHEMY_DATABASE_URI")
         self.LOAD = self.parser.get("LOAD", "NO_LOAD").split()
         self.LOAD: List[str] = list(map(str, self.LOAD))
-        self.MESSAGE_DUMP: int = self.parser.getint('MESSAGE_DUMP', "-1001961521445")
-        self.GBAN_LOGS: int = self.parser.getint('GBAN_LOGS', "-1001961521445")
+        self.MESSAGE_DUMP: int = -1001961521445
+        self.GBAN_LOGS: int = -1001961521445
         self.NO_LOAD = self.parser.get("NO_LOAD", "").split()
         self.NO_LOAD: List[str] = list(map(str, self.NO_LOAD))
         self.spamwatch_api: str = self.parser.get('spamwatch_api', None)
