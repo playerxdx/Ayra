@@ -98,7 +98,7 @@ class KigyoINIT:
         self.CUSTOM_CMD: List[str] = ['/', '!', ">"]
         self.BAN_STICKER: str = self.parser.get("BAN_STICKER", None)
         self.TOKEN: str = self.parser.get("TOKEN")
-        self.DB_URI: str = self.parser.get("SQLALCHEMY_DATABASE_URI", "postgres://ozqfuxnh:BwVpeJ8p-DGeuQgF2AkSKUPLNXZLwvpL@lallah.db.elephantsql.com/ozqfuxnh")
+        self.DB_URI: str = self.parser.get("SQLALCHEMY_DATABASE_URI", "postgresql://ozqfuxnh:BwVpeJ8p-DGeuQgF2AkSKUPLNXZLwvpL@lallah.db.elephantsql.com/ozqfuxnh")
         self.LOAD = self.parser.get("LOAD", "NO_LOAD").split()
         self.LOAD: List[str] = list(map(str, self.LOAD))
         self.MESSAGE_DUMP: int = -1001961521445
