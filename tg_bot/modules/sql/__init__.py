@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+import sqlalchemy
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, scoped_session
 
@@ -6,7 +6,7 @@ from tg_bot import DB_URI, log
 
 
 def start() -> scoped_session:
-    engine = create_engine(DB_URI, client_encoding="utf8")
+    engine = sqlalchemy.create_engine(DB_URI, client_encoding="utf8")
     log.info("[PostgreSQL] Connecting to database......")
     BASE.metadata.bind = engine
     BASE.metadata.create_all(engine)
